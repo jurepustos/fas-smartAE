@@ -3,17 +3,23 @@ from networkit.graphio import EdgeListReader
 from networkit.components import StronglyConnectedComponents
 from networkit.graphtools import GraphTools
 from networkit.traversal import Traversal
+from sortedcontainers import SortedList
 from typing import Iterator
 from copy import copy
 import sys
 
 
-def graph_fas(graph: Graph) -> list[int]:
-    remove_unneeded_vertices(graph)
-    components = get_strongly_connected_components(graph)
+def graph_fas(graph: Graph) -> list[tuple[int, int]]:
+    """
+    Searches for a minimal Feedback Arc Set of the input graph
+    and returns it as a list of edges.
+    """
+    components = iter_strongly_connected_components(graph)
     total_fas = []
     for component in components:
+        # TODO: run in 8 parallel threads (2 per ordering)
         if len(component) >= 2:
+            remove_unneeded_vertices(component)
             component_nodes = list(graph.iterNodes())
             component_nodes.sort(lambda node: graph.degreeOut(node))
             out_asc = compute_fas(component, component_nodes)
@@ -46,7 +52,7 @@ def remove_unneeded_vertices(graph: Graph):
     graph.removeEdges(sources)
 
 
-def get_strongly_connected_components(graph: Graph) -> Iterator[Graph]:
+def iter_strongly_connected_components(graph: Graph) -> Iterator[Graph]:
     """
     Returns a list of strongly connected components,
     represented as lists of nodes.
@@ -57,10 +63,12 @@ def get_strongly_connected_components(graph: Graph) -> Iterator[Graph]:
         yield GraphTools.subgraphFromNodes(graph, component_nodes)
 
 
-def compute_fas(graph: Graph, ordering: list[int]) -> list[int]:
+def compute_fas(graph: Graph, ordering: list[int]) -> list[tuple[int, int]]:
     """
     Computes a minimal FAS for the given nodes.
     """
+    # TODO: run in 2 separate threads
+
     forward_edges = []
     forward_graph = copy(graph)
 
@@ -69,6 +77,7 @@ def compute_fas(graph: Graph, ordering: list[int]) -> list[int]:
         edges = get_forward_edges_from(forward_graph, ordering, i)
         forward_edges.extend(edges)
         forward_graph.removeEdges(forward_edges)
+        # TODO: instead of checking acyclicity, we could use SCCs instead
         if is_acyclic(forward_graph, ordering):
             break
 
@@ -80,9 +89,9 @@ def compute_fas(graph: Graph, ordering: list[int]) -> list[int]:
         edges = get_backward_edges_from(backward_graph, ordering, i)
         backward_edges.extend(edges)
         backward_graph.removeEdges(backward_edges)
+        # TODO: instead of checking acyclicity, we could use SCCs instead
         if is_acyclic(backward_graph, ordering):
             break
-    graph.addEdges(backward_edges)
 
     # reduce the size of the FAS with the smartAE heuristic
     if len(forward_edges) < len(backward_edges):
@@ -94,20 +103,20 @@ def compute_fas(graph: Graph, ordering: list[int]) -> list[int]:
 def get_forward_edges_from(graph: Graph, ordering: list[int],
                            start: int) -> list[int]:
     forward_edges = []
-    start_neighbors = set(graph.iterOutNeighbors(ordering[start]))
+    start_neighbors = SortedList(graph.iterOutNeighbors(ordering[start]))
     for node in range(start+1, len(ordering)):
         if ordering[node] in start_neighbors:
-            forward_edges.append(node)
+            forward_edges.append((start, node))
     return forward_edges
 
 
 def get_backward_edges_from(graph: Graph, ordering: list[int],
                             start: int) -> list[int]:
     backward_edges = []
-    start_neighbors = set(graph.iterInNeighbors(ordering[start]))
+    start_neighbors = SortedList(graph.iterInNeighbors(ordering[start]))
     for node in range(start+1, len(ordering)):
         if ordering[node] in start_neighbors:
-            backward_edges.append(node)
+            backward_edges.append((node, start))
     return backward_edges
 
 
