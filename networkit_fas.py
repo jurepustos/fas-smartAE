@@ -63,7 +63,7 @@ class NetworkitGraph(FASGraph[int, tuple[int, int]]):
 
     def is_acyclic(self) -> bool:
         try:
-            Traversal.DFSfrom(graph, GraphTools.randomNode(self.graph),
+            Traversal.DFSfrom(self.graph, GraphTools.randomNode(self.graph),
                               acyclic_dfs_callback(self.graph))
             return True
         except CycleDetectedError:
@@ -87,9 +87,36 @@ class NetworkitGraph(FASGraph[int, tuple[int, int]]):
         reader = EdgeListReader(directed=True, separator='\t')
         return cls(reader.read(filename))
 
+    def __copy__(self):
+        return NetworkitGraph(copy(self.graph))
+
 
 class CycleDetectedError(Exception):
     def __init__(self, message=None):
         if message is None:
             message = "A cycle was detected"
         super().__init__(message)
+
+
+def acyclic_dfs_callback(graph: Graph):
+    active_path = {node: False for node in graph.iterNodes()}
+    prev_node = None
+
+    def callback_inner(node):
+        nonlocal prev_node
+        # remove the previously visited node from the active path
+        if prev_node is not None and active_path[prev_node]:
+            active_path[prev_node] = False
+
+        # check if a neighbor is in the active path
+        for neighbor in graph.iterOutNeighbors():
+            if active_path[neighbor]:
+                raise CycleDetectedError
+
+        # add current node to the active path
+        active_path[node] = True
+        # set the previous node to the current node, so that it is removed
+        # from the active path when backtracking
+        prev_node = node
+
+    return callback_inner
