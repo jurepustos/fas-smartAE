@@ -61,11 +61,11 @@ def smart_ae(graph: Graph, fas: list[Edge]) -> list[Edge]:
             # since it's not really needed
             fas_count -= 1
 
-            graph.addEdge(edge)
+            graph.add_edge(edge)
             if graph.is_acyclic():
                 added_edges.append(edge)
                 added_count += 1
             else:
-                graph.removeEdge()
+                graph.remove_edge()
                 eliminated_edges.append(edge)
     return eliminated_edges

@@ -6,7 +6,6 @@ from networkit.traversal import Traversal
 from sortedcontainers import SortedList
 from typing import Iterator, Self
 from copy import copy
-import sys
 
 from .fas_graph import FASGraph
 
@@ -37,7 +36,7 @@ class NetworkitGraph(FASGraph[int, tuple[int, int]]):
         cc = StronglyConnectedComponents(self.graph)
         cc.run()
         for component_nodes in cc.getComponents():
-            yield GraphTools.subgraphFromNodes(graph, component_nodes)
+            yield GraphTools.subgraphFromNodes(self.graph, component_nodes)
 
     def get_forward_edges_from(self, ordering: list[int],
                                start_index: int) -> list[tuple[int, int]]:
@@ -75,7 +74,7 @@ class NetworkitGraph(FASGraph[int, tuple[int, int]]):
     def remove_edge(self, edge: tuple[int, int]):
         self.graph.removeEdge(edge)
 
-    def remove_edges(self, edges: Iterator[tuple[int, int]]):
+    def remove_edges(self, edges: list[tuple[int, int]]):
         self.graph.removeEdges(edges)
 
     @classmethod

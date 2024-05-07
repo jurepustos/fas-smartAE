@@ -82,7 +82,7 @@ class FASGraph(ABC, Generic[Node, Edge]):
         raise NotImplementedError
 
     @abstractmethod
-    def remove_edges(self, edges: Iterator[Edge]):
+    def remove_edges(self, edges: list[Edge]):
         raise NotImplementedError
 
     @abstractclassmethod
