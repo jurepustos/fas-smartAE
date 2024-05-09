@@ -66,6 +66,6 @@ def smart_ae(graph: Graph, fas: list[Edge]) -> list[Edge]:
                 added_edges.append(edge)
                 added_count += 1
             else:
-                graph.remove_edge()
+                graph.remove_edge(edge)
                 eliminated_edges.append(edge)
     return eliminated_edges

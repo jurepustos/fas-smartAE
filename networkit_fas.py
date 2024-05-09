@@ -17,6 +17,21 @@ class NetworkitGraph(FASGraph[int, tuple[int, int]]):
     def get_nodes(self) -> list[int]:
         return list(self.graph.iterNodes())
 
+    def get_edge(self, source: int, target: int) -> tuple[int, int]:
+        return (source, target)
+
+    def get_out_degree(self, node: int) -> int:
+        return self.graph.degreeOut(node)
+
+    def get_in_degree(self, node: int) -> int:
+        return self.graph.degreeIn(node)
+
+    def iter_out_neighbors(self, node: int) -> Iterator[int]:
+        return self.graph.iterOutNeighbors(node)
+
+    def iter_in_neighbors(self, node: int) -> Iterator[int]:
+        return self.graph.iterInNeighbors(node)
+
     def remove_sinks(self):
         sinks = [node for node in self.graph.iterNodes()
                  if self.graph.degreeOut(node) == 0]
@@ -37,28 +52,6 @@ class NetworkitGraph(FASGraph[int, tuple[int, int]]):
         cc.run()
         for component_nodes in cc.getComponents():
             yield GraphTools.subgraphFromNodes(self.graph, component_nodes)
-
-    def get_forward_edges_from(self, ordering: list[int],
-                               start_index: int) -> list[tuple[int, int]]:
-        forward_edges = []
-        start_neighbors = SortedList(graph.iterOutNeighbors(ordering[start_index]))
-        start = ordering[start_index]
-        for node_index in range(start_index+1, len(ordering)):
-            node = ordering[node_index]
-            if node in start_neighbors:
-                forward_edges.append((start, node))
-        return forward_edges
-
-    def get_backward_edges_from(self, ordering: list[int],
-                                start_index: int) -> list[tuple[int, int]]:
-        backward_edges = []
-        start_neighbors = SortedList(graph.iterInNeighbors(ordering[start_index]))
-        start = ordering[start_index]
-        for node_index in range(start_index+1, len(ordering)):
-            node = ordering[node_index]
-            if node in start_neighbors:
-                backward_edges.append((node, start))
-        return backward_edges
 
     def is_acyclic(self) -> bool:
         try:
