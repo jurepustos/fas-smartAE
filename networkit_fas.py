@@ -3,7 +3,6 @@ from networkit.graphio import EdgeListReader
 from networkit.components import StronglyConnectedComponents
 from networkit.graphtools import GraphTools
 from networkit.traversal import Traversal
-from sortedcontainers import SortedList
 from typing import Iterator, Self
 from copy import copy
 

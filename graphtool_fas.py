@@ -1,5 +1,5 @@
 from graph_tool import Graph, Vertex, Edge
-from graph_tool.topology import label_components, is_DAG, dominator_tree
+from graph_tool.topology import label_components, is_DAG
 
 from typing import Iterator, Self
 
@@ -32,7 +32,7 @@ class GTGraph(FASGraph[Vertex, Edge]):
         comp_vprop, hist = label_components(self.graph)
         for comp_index in range(self.graph.num_vertices()):
             if hist[comp_index] >= 2:
-                vprop = self.graph.new_vp("bool", vals=comp_vprop.fa == comp_index)
+                vprop = self.graph.new_vp("bool", vals=comp_vprop.a == comp_index)
                 self.graph.set_vertex_filter(vprop)
                 comp = Graph(self.graph, prune=True)
                 self.graph.clear_filters()
@@ -40,14 +40,14 @@ class GTGraph(FASGraph[Vertex, Edge]):
 
     def remove_sinks(self):
         out_degree_vp = self.graph.degree_property_map("out")
-        vp = self.graph.new_vp("bool", vals=out_degree_vp.fa > 0)
+        vp = self.graph.new_vp("bool", vals=out_degree_vp.a > 0)
         self.graph.set_vertex_filter(vp)
         self.graph.purge_vertices()
         self.graph.clear_filters()
 
     def remove_sources(self):
         in_degree_vp = self.graph.degree_property_map("in")
-        vp = self.graph.new_vp("bool", vals=in_degree_vp.fa > 0)
+        vp = self.graph.new_vp("bool", vals=in_degree_vp.a > 0)
         self.graph.set_vertex_filter(vp)
         self.graph.purge_vertices()
         self.graph.clear_filters()
