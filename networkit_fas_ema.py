@@ -80,6 +80,17 @@ def remove_sources(self):
     for source in sources:
         self.removeNode(source)
 
+
+def remove_edge(self, edge: tuple[int, int]):
+        self.removeEdge(edge)
+
+def remove_edges(self, edges: list[tuple[int, int]]):
+    for edge in edges:
+        print("edge", edge)
+        self.removeEdge(edge)
+
+
+
 def iter_strongly_connected_components(self) -> Iterator[Self]:
     """
     Returns a list of strongly connected components
@@ -98,34 +109,6 @@ def find2cycles(self):
                 if u == w and u < v:
                     twoCycles.append((u, v))
     return twoCycles
-
-    
-def find_2_3_cycles(self):
-    threeCycles = []
-    sorted3cycles = []
-    threeBypass = []
-    twoCycles = []
-    for u in get_nodes(self):
-        for v in self.iterNeighbors(u):
-            for w in self.iterNeighbors(v):
-                if u == w and u < v:
-                    twoCycles.append((u, v))
-                triple = [u, v, w]
-                
-                for x in self.iterInNeighbors(w):
-                    sorted3 = sorted(triple)
-                    if u == x and sorted3 not in threeBypass:
-                        if get_in_degree(self, triple[1]) == 1 and get_out_degree(self, triple[1]) == 1:
-                          threeBypass.append(triple)
-                        
-                
-                for x in self.iterNeighbors(w):
-                  sorted3 = sorted(triple)
-                  if u == x and sorted3 not in sorted3cycles:
-                      if get_in_degree(self, triple[1]) == 1 and get_out_degree(self, triple[1]) == 1:
-                        threeCycles.append(triple)
-                        sorted3cycles.append(sorted3)
-    return twoCycles, threeCycles, threeBypass
 
 
 def find3cycles(self):
@@ -160,7 +143,8 @@ def removeRuns(self):   #remove runs larger than 2
                 w = next(iter_out_neighbors(self, v))
                 if u < w:
                     self.removeNode(v)
-                    self.addEdge(u, w)
+                    if not self.hasEdge(u, w):
+                        self.addEdge(u, w)
                 v = w
     return
 
@@ -176,32 +160,8 @@ def removeRuns2(self):    #remove runs of size 2
     return 
 
 
-def simplification(self):
-    
-    removeRuns(self)
-    
-    cy3, by3 = find3cycles(self)
+def remove2cycles(self):
     FAS = []
-    """print("two cycles", cy2)
-    print("three cycles", cy3)
-    print("three bypass", by3)"""
-
-    for triple in cy3:
-        a, b, c = triple
-        if get_out_degree(self, b) != 1 and get_in_degree(self, b) != 1:
-            print("error")
-        else:
-            self.addEdge(a, c)
-            self.removeNode(b)
-
-    for bypass in by3:
-        a, b, c = bypass
-        if get_out_degree(self, b) != 1 and get_in_degree(self, b) != 1:
-            print("error")
-        else:
-          self.addEdge(a, c)
-          self.removeNode(b)
-
     cy2 = find2cycles(self)
 
     for pair in cy2:
@@ -212,10 +172,18 @@ def simplification(self):
               edge = get_edge(G, b, a)
               FAS.append(edge)
               G.removeNode(b)
-        elif get_in_degree(G,b) == 1 and get_out_degree(G, b) <= 3:  # TODO: a rabs tm get_out_degree <= 3?
+        elif get_in_degree(G,b) == 1: 
             edge = get_edge(G, a, b)
             FAS.append(edge)
-            G.removeNode(b)     
+            G.removeNode(b)    
+    
+    return FAS
+
+
+def simplification(self):
+
+    removeRuns(self)
+    FAS = remove2cycles(self)
 
     return FAS
 
@@ -269,31 +237,8 @@ def ureditve(self):
     return 
 
 
-def ureditve2(self):
-    component_nodes = get_nodes(self)
-    
-    component_nodes.sort(key=lambda node: get_out_degree(G, node))  # changed lambda to key
-            
-    print("out_asc", component_nodes)
-    """component_nodes.reverse()
-    out_desc = compute_fas(component, component_nodes,
-                            use_smartAE=use_smartAE,
-                            stopping_condition=stopping_condition)
-    component_nodes.sort(lambda node: graph.get_in_degree(node))
-    in_asc = compute_fas(component, component_nodes,
-                            use_smartAE=use_smartAE,
-                            stopping_condition=stopping_condition)
-    component_nodes.reverse()
-    in_desc = compute_fas(component, component_nodes,
-                            use_smartAE=use_smartAE,
-                            stopping_condition=stopping_condition)"""
-
-    return 
-
 
 compute_scores(G, get_nodes(G))
-
-ureditve2(G)
 
 """#is_acyclic_topologically(G)
 print("nodes", get_nodes(G))
