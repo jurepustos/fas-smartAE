@@ -1,4 +1,4 @@
-from typing import TypeVar
+from typing import TypeVar, Tuple, Dict
 from copy import copy
 
 from sortedcontainers import SortedList
@@ -7,7 +7,8 @@ from .fas_graph import FASGraph
 
 Edge = TypeVar('Edge')
 Node = TypeVar('Node')
-Graph = TypeVar('Graph', FASGraph[Node, Edge])
+Graph = TypeVar('Graph', FASGraph[Node, Edge])       #type: ignore
+#TODO: check TypeVar error: TypeVar constraint type cannot be genericPylance
 
 
 def feedback_arc_set(graph: Graph, use_smartAE: bool = True, reduce: bool = True,
@@ -25,8 +26,9 @@ def feedback_arc_set(graph: Graph, use_smartAE: bool = True, reduce: bool = True
     for component in components:
         # TODO: run in 8 parallel threads (2 per ordering)
         if len(component) >= 2:
-            component_nodes = graph.get_nodes()
-            component_nodes.sort(lambda node: graph.get_out_degree(node))
+            component_nodes = component  #TODO: tle je vrjetn misln d dobimo nodes od component ne grafa
+
+            component_nodes.sort(key=lambda node: graph.get_out_degree(node))  # changed lambda to key
             out_asc = compute_fas(component, component_nodes,
                                   use_smartAE=use_smartAE,
                                   stopping_condition=stopping_condition)
@@ -34,7 +36,7 @@ def feedback_arc_set(graph: Graph, use_smartAE: bool = True, reduce: bool = True
             out_desc = compute_fas(component, component_nodes,
                                    use_smartAE=use_smartAE,
                                    stopping_condition=stopping_condition)
-            component_nodes.sort(lambda node: graph.get_in_degree(node))
+            component_nodes.sort(key=lambda node: graph.get_in_degree(node))  # changed lambda to key
             in_asc = compute_fas(component, component_nodes,
                                  use_smartAE=use_smartAE,
                                  stopping_condition=stopping_condition)
@@ -42,9 +44,41 @@ def feedback_arc_set(graph: Graph, use_smartAE: bool = True, reduce: bool = True
             in_desc = compute_fas(component, component_nodes,
                                   use_smartAE=use_smartAE,
                                   stopping_condition=stopping_condition)
-            total_fas.append(min(out_asc, out_desc, in_asc, in_desc, key=len))
+            
+            score1, score2 = compute_scores(graph, component_nodes)
+            greedy1 = compute_fas(component, score1, use_smartAE=use_smartAE, stopping_condition=stopping_condition)
+            greedy2 = compute_fas(component, score2, use_smartAE=use_smartAE, stopping_condition=stopping_condition)
+
+            total_fas.append(min(out_asc, out_desc, in_asc, in_desc, greedy1, greedy2, key=len))
 
     return total_fas
+
+
+def compute_scores(graph: Graph, component_nodes) -> Tuple[Dict[int, int], Dict[int, float]]:
+    score1 = {}
+    score2 = {}
+    for node in component_nodes:
+        in_degree = graph.get_in_degree(node)
+        out_degree = graph.get_out_degree(node)
+        score1[node] = abs(in_degree - out_degree)
+        if out_degree == 0 and in_degree == 0:
+            score2[node] = 0
+            continue
+        if out_degree > 0:
+            ratio = in_degree / out_degree
+        else:
+            ratio = float('inf')
+        if in_degree > 0:
+            inv_ratio = out_degree / in_degree
+        else:
+            inv_ratio = float('inf')
+        score2[node] = max(ratio, inv_ratio)
+
+    scores1 = sorted(score1.items(), key=lambda x: x[1], reverse=True)
+    scores1 = [t[0] for t in scores1]
+    scores2 = sorted(score2.items(), key=lambda item: item[1], reverse=True)
+    scores2 = [t[0] for t in scores2]
+    return scores1, scores2
 
 
 def compute_fas(graph: Graph, ordering: list[Node], use_smartAE: bool = True,
@@ -75,7 +109,7 @@ def get_forward_edges(graph: Graph, ordering: list[int],
     forward_edges = []
     forward_graph = copy(graph)
     for i in range(len(ordering)):
-        edges = forward_graph.get_forward_edges_from(ordering, i)
+        edges = get_forward_edges_from(forward_graph, ordering, i)  # Corrected call
         forward_edges.extend(edges)
         forward_graph.remove_edges(forward_edges)
         # TODO: instead of checking acyclicity, we could use SCCs instead
@@ -103,7 +137,7 @@ def get_backward_edges(graph: Graph, ordering: list[int],
     backward_edges = []
     backward_graph = copy(graph)
     for i in range(len(ordering)):
-        edges = backward_graph.get_backward_edges_from(ordering, i)
+        edges = get_backward_edges_from(backward_graph, ordering, i)  # Corrected call
         backward_edges.extend(edges)
         backward_graph.remove_edges(backward_edges)
         # TODO: instead of checking acyclicity, we could use SCCs instead

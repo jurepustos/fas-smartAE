@@ -5,6 +5,7 @@ from networkit.graphtools import GraphTools
 from networkit.traversal import Traversal
 from typing import Iterator, Self
 from copy import copy
+import graphlib
 
 from .fas_graph import FASGraph
 
@@ -26,7 +27,7 @@ class NetworkitGraph(FASGraph[int, tuple[int, int]]):
         return self.graph.degreeIn(node)
 
     def iter_out_neighbors(self, node: int) -> Iterator[int]:
-        return self.graph.iterOutNeighbors(node)
+        return self.iterNeighbors(node)        #TODO: interOutNeighbors doesnt exist!!
 
     def iter_in_neighbors(self, node: int) -> Iterator[int]:
         return self.graph.iterInNeighbors(node)
@@ -59,6 +60,25 @@ class NetworkitGraph(FASGraph[int, tuple[int, int]]):
             return True
         except CycleDetectedError:
             return False
+
+    def is_acyclic_topologically(self) -> bool:
+        sorter = graphlib.TopologicalSorter()
+
+        # Add nodes and edges to the sorter
+        for node in self.graph.iterNodes():
+            sorter.add(node)
+        for source, target in self.graph.iterEdges():
+            sorter.dependency(target, source)  # Invert the edge direction for TopologicalSorter
+
+        # Perform the topological sort
+        try:
+            sorted_order = list(sorter.sorted())
+            print("Proposed topologically sorted order:", sorted_order)
+            return True
+        except graphlib.CycleError:
+            print("Error: Graph has a cycle")
+            return False
+    
 
     def add_edge(self, edge: tuple[int, int]):
         self.graph.addEdge(edge)
