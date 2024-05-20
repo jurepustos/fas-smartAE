@@ -1,36 +1,30 @@
-from abc import ABC, abstractmethod, abstractclassmethod
-from typing import TypeVar, Self, Iterator, Generic
-from copy import copy
-
-from sortedcontainers import SortedList
-
-Edge = TypeVar('Edge')
-Node = TypeVar('Node')
+from abc import ABC, abstractmethod
+from typing import Iterator, Self
 
 
-class FASGraph(ABC, Generic[Node, Edge]):
+class FASGraph(ABC):
     @abstractmethod
-    def get_nodes(self) -> Iterator[Node]:
+    def get_nodes(self) -> list[int]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_edge(self, source: Node, target: Node) -> Edge | None:
+    def get_num_nodes(self) -> int:
         raise NotImplementedError
 
     @abstractmethod
-    def get_out_degree(self, node: Node) -> int:
+    def get_out_degree(self, node: int) -> int:
         raise NotImplementedError
 
     @abstractmethod
-    def get_in_degree(self, node: Node) -> int:
+    def get_in_degree(self, node: int) -> int:
         raise NotImplementedError
 
     @abstractmethod
-    def iter_out_neighbors(self, node: Node) -> Iterator[Node]:
+    def iter_out_neighbors(self, node: int) -> Iterator[int]:
         raise NotImplementedError
 
     @abstractmethod
-    def iter_in_neighbors(self, node: Node) -> Iterator[Node]:
+    def iter_in_neighbors(self, node: int) -> Iterator[int]:
         raise NotImplementedError
 
     @abstractmethod
@@ -50,17 +44,18 @@ class FASGraph(ABC, Generic[Node, Edge]):
         raise NotImplementedError
 
     @abstractmethod
-    def add_edge(self, edge: Edge):
+    def add_edge(self, edge: tuple[int, int]):
         raise NotImplementedError
 
     @abstractmethod
-    def remove_edge(self, edge: Edge):
+    def remove_edge(self, edge: tuple[int, int]):
         raise NotImplementedError
 
     @abstractmethod
-    def remove_edges(self, edges: list[Edge]):
+    def remove_edges(self, edges: list[tuple[int, int]]):
         raise NotImplementedError
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def load_from_edge_list(cls, filename: str):
         raise NotImplementedError
