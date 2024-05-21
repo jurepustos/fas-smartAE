@@ -7,6 +7,8 @@ from networkit.components import StronglyConnectedComponents
 from networkit.graph import Graph
 from networkit.graphio import EdgeListReader
 from networkit.graphtools import GraphTools
+from networkit.traversal import Traversal
+
 
 from fas_graph import FASGraph
 
@@ -17,6 +19,9 @@ class NetworkitGraph(FASGraph):
 
     def get_nodes(self) -> list[int]:
         return list(self.graph.iterNodes())
+    
+    def get_edge(self, source: int, target: int) -> tuple[int, int]:
+        return (source, target)
 
     def get_num_nodes(self) -> int:
         return self.graph.numberOfNodes()
@@ -58,12 +63,6 @@ class NetworkitGraph(FASGraph):
                 GraphTools.subgraphFromNodes(self.graph, component_nodes)
             )
 
-    def is_acyclic(self) -> bool:
-        try:
-            GraphTools.topologicalSort(self.graph)
-            return True
-        except Exception:
-            return False
 
     def add_edge(self, edge: tuple[int, int]):
         self.graph.addEdge(*edge)
@@ -86,9 +85,53 @@ class NetworkitGraph(FASGraph):
         graph.removeMultiEdges()
         graph.removeSelfLoops()
         return cls(graph)
+    
+    @classmethod
+    def load_from_adjacency_list(cls, filename: str):
+        """
+        Load the graph from an adjacency-list representation.
+        """
+        graph = Graph(directed=True)
+
+        with open(filename, 'r') as file:
+            line_count = sum(1 for line in file)
+
+        graph.addNodes(line_count +1)
+        #print(graph.numberOfNodes())
+
+        with open(filename, 'r') as file:
+            for line in file:
+                nodes = list(map(int, line.strip().split()))
+                source = nodes[0]
+
+                for target in nodes[1:]:
+                    print(source, target)
+                    graph.addEdge(source, target)
+        graph.removeMultiEdges()
+        graph.removeSelfLoops()
+
+        #TODO: remove isolated nodes
+        return cls(graph)
+    
+
 
     def __copy__(self):
         return NetworkitGraph(copy(self.graph))
+    
+
+    def is_acyclic(self) -> bool:
+        if self.graph.numberOfNodes() == 0 or self.graph.numberOfEdges() == 0:
+            return True
+
+        try:
+            Traversal.DFSfrom(
+                self.graph,
+                next(self.graph.iterNodes()),
+                acyclic_dfs_callback(self.graph),
+            )
+            return True
+        except RuntimeError:
+            return False
     
 
     def is_acyclic_topologically(self) -> bool:
@@ -123,9 +166,9 @@ class NetworkitGraph(FASGraph):
                 while self.get_in_degree(v) == 1 and self.get_out_degree(v) == 1:
                     w = next(self.iter_out_neighbors(v))
                     if u < w:
-                        self.removeNode(v)
-                        if not self.hasEdge(u, w):
-                            self.addEdge(u, w)
+                        self.graph.removeNode(v)
+                        if not self.graph.hasEdge(u, w):
+                            self.graph.addEdge(u, w)
                     v = w
         return
 
@@ -137,15 +180,15 @@ class NetworkitGraph(FASGraph):
         for pair in cy2:
             a = pair[0]
             b = pair[1]
-            print("pair", a, b)
+            
             if self.get_out_degree(b) == 1:
-                edge = self.get_edge(b, a)
+                edge = (b, a)
                 FAS.append(edge)
-                self.removeNode(b)
+                self.graph.removeNode(b)
             elif self.get_in_degree(b) == 1: 
-                edge = self.get_edge(a, b)
+                edge = (a, b)
                 FAS.append(edge)
-                self.removeNode(b)    
+                self.graph.removeNode(b)    
         
         return FAS
 
@@ -158,24 +201,15 @@ class CycleDetectedError(Exception):
 
 
 def acyclic_dfs_callback(graph: Graph):
-    active_path = {node: False for node in graph.iterNodes()}
-    prev_node = None
+    visited = {node: False for node in graph.iterNodes()}
 
     def callback_inner(node):
-        nonlocal prev_node
-        # remove the previously visited node from the active path
-        if prev_node is not None and active_path[prev_node]:
-            active_path[prev_node] = False
+        # add current node to the active path
+        visited[node] = True
 
         # check if a neighbor is in the active path
         for neighbor in graph.iterNeighbors(node):
-            if active_path[neighbor]:
+            if visited[neighbor]:
                 raise CycleDetectedError
-
-        # add current node to the active path
-        active_path[node] = True
-        # set the previous node to the current node, so that it is removed
-        # from the active path when backtracking
-        prev_node = node
 
     return callback_inner
