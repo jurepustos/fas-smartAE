@@ -174,7 +174,6 @@ class NetworkitGraph(FASGraph):
         graph.removeMultiEdges()
         graph.removeSelfLoops()
 
-        #TODO: remove isolated nodes
         return cls(graph)
 
 class CycleDetectedError(Exception):
