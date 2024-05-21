@@ -99,7 +99,7 @@ class NetworkitGraph(FASGraph):
                 GraphTools.subgraphFromNodes(self.graph, component_nodes)
             )
 
-    def is_acyclic2(self) -> bool:
+    def is_acyclic(self) -> bool:
         sorter = graphlib.TopologicalSorter()
 
         for node in self.graph.iterNodes():
@@ -112,7 +112,7 @@ class NetworkitGraph(FASGraph):
         except graphlib.CycleError:
             return False
 
-    def is_acyclic(self) -> bool:
+    def is_acyclic2(self) -> bool:
         if self.graph.numberOfNodes() == 0 or self.graph.numberOfEdges() == 0:
             return True
 
@@ -151,6 +151,31 @@ class NetworkitGraph(FASGraph):
     def __copy__(self):
         return NetworkitGraph(copy(self.graph))
 
+    @classmethod
+    def load_from_adjacency_list(cls, filename: str):
+        """
+        Load the graph from an adjacency-list representation.
+        """
+        graph = Graph(directed=True)
+
+        with open(filename, 'r') as file:
+            line_count = sum(1 for line in file)
+
+        graph.addNodes(line_count +1)
+
+        with open(filename, 'r') as file:
+            for line in file:
+                nodes = list(map(int, line.strip().split()))
+                source = nodes[0]
+
+                for target in nodes[1:]:
+                    print(source, target)
+                    graph.addEdge(source, target)
+        graph.removeMultiEdges()
+        graph.removeSelfLoops()
+
+        #TODO: remove isolated nodes
+        return cls(graph)
 
 class CycleDetectedError(Exception):
     def __init__(self, message=None):
