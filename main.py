@@ -12,5 +12,6 @@ if __name__ == "__main__":
     for node in graph.get_nodes():
         print(node, graph.get_in_degree(node), graph.get_out_degree(node))
     arcset = feedback_arc_set(graph, use_smartAE=True, reduce=False)
+    print('graph acyclic', graph.is_acyclic())
     print('result arc set:')
     print(arcset)

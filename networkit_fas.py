@@ -6,6 +6,7 @@ from networkit.components import StronglyConnectedComponents
 from networkit.graph import Graph
 from networkit.graphio import EdgeListReader
 from networkit.graphtools import GraphTools
+from networkit.traversal import Traversal
 
 from fas_graph import FASGraph
 
@@ -58,11 +59,20 @@ class NetworkitGraph(FASGraph):
             )
 
     def is_acyclic(self) -> bool:
-        try:
-            GraphTools.topologicalSort(self.graph)
-            return True
-        except Exception:
-            return False
+        visited = {node: False for node in self.graph.iterNodes()}
+
+        def exploreNode(u):
+            if visited[u]:
+                raise Exception('Cycle detected')
+            visited[u] = True
+
+        for node in self.graph.iterNodes():
+            if not visited[node]:
+                try:
+                    Traversal.DFSfrom(self.graph, node, exploreNode)
+                except Exception:
+                    return False
+        return True
 
     def add_edge(self, edge: tuple[int, int]):
         self.graph.addEdge(*edge)
@@ -88,34 +98,3 @@ class NetworkitGraph(FASGraph):
 
     def __copy__(self):
         return NetworkitGraph(copy(self.graph))
-
-
-class CycleDetectedError(Exception):
-    def __init__(self, message=None):
-        if message is None:
-            message = "A cycle was detected"
-        super().__init__(message)
-
-
-def acyclic_dfs_callback(graph: Graph):
-    active_path = {node: False for node in graph.iterNodes()}
-    prev_node = None
-
-    def callback_inner(node):
-        nonlocal prev_node
-        # remove the previously visited node from the active path
-        if prev_node is not None and active_path[prev_node]:
-            active_path[prev_node] = False
-
-        # check if a neighbor is in the active path
-        for neighbor in graph.iterNeighbors(node):
-            if active_path[neighbor]:
-                raise CycleDetectedError
-
-        # add current node to the active path
-        active_path[node] = True
-        # set the previous node to the current node, so that it is removed
-        # from the active path when backtracking
-        prev_node = node
-
-    return callback_inner

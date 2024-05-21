@@ -12,6 +12,7 @@ def feedback_arc_set(
     Searches for a minimal Feedback Arc Set of the input graph
     and returns an approximate answer as a list of edges.
     """
+    print('graph acyclic', graph.is_acyclic())
     if reduce:
         graph.remove_sinks()
         graph.remove_sources()
@@ -19,6 +20,7 @@ def feedback_arc_set(
     total_fas = []
     components = graph.iter_strongly_connected_components()
     for component in components:
+        print('component acyclic', component.is_acyclic())
         # TODO: run in 8 parallel threads (2 per ordering)
         if component.get_num_nodes() >= 2:
             component_nodes = component.get_nodes()
@@ -80,8 +82,8 @@ def get_forward_edges(
     forward_graph = copy(graph)
     for i in range(len(ordering)):
         edges = get_forward_edges_from(graph, ordering, i)
+        forward_graph.remove_edges(edges)
         forward_edges.extend(edges)
-        forward_graph.remove_edges(forward_edges)
         # TODO: instead of checking acyclicity, we could use SCCs instead
         if forward_graph.is_acyclic():
             break
@@ -109,8 +111,8 @@ def get_backward_edges(
     backward_graph = copy(graph)
     for i in range(len(ordering)):
         edges = get_backward_edges_from(graph, ordering, i)
+        backward_graph.remove_edges(edges)
         backward_edges.extend(edges)
-        backward_graph.remove_edges(backward_edges)
         # TODO: instead of checking acyclicity, we could use SCCs instead
         if backward_graph.is_acyclic():
             break
