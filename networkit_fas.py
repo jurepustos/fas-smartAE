@@ -99,7 +99,7 @@ class NetworkitGraph(FASGraph):
                 GraphTools.subgraphFromNodes(self.graph, component_nodes)
             )
 
-    def is_acyclic(self) -> bool:
+    def is_acyclic2(self) -> bool:
         sorter = graphlib.TopologicalSorter()
 
         for node in self.graph.iterNodes():
@@ -107,26 +107,24 @@ class NetworkitGraph(FASGraph):
         for source, target in self.graph.iterEdges():
             sorter.add(source, target)
         try:
-            sorter.static_order()
+            _ = [*sorter.static_order()]
             return True
         except graphlib.CycleError:
             return False
 
-    def is_acyclic2(self) -> bool:
-        visited = {node: False for node in self.graph.iterNodes()}
+    def is_acyclic(self) -> bool:
+        if self.graph.numberOfNodes() == 0 or self.graph.numberOfEdges() == 0:
+            return True
 
-        def exploreNode(u):
-            if visited[u]:
-                raise Exception("Cycle detected")
-            visited[u] = True
-
-        for node in self.graph.iterNodes():
-            if not visited[node]:
-                try:
-                    Traversal.DFSfrom(self.graph, node, exploreNode)
-                except Exception:
-                    return False
-        return True
+        try:
+            Traversal.DFSfrom(
+                self.graph,
+                next(self.graph.iterNodes()),
+                acyclic_dfs_callback(self.graph),
+            )
+            return True
+        except RuntimeError:
+            return False
 
     def add_edge(self, edge: tuple[int, int]):
         self.graph.addEdge(*edge)
@@ -162,24 +160,15 @@ class CycleDetectedError(Exception):
 
 
 def acyclic_dfs_callback(graph: Graph):
-    active_path = {node: False for node in graph.iterNodes()}
-    prev_node = None
+    visited = {node: False for node in graph.iterNodes()}
 
     def callback_inner(node):
-        nonlocal prev_node
-        # remove the previously visited node from the active path
-        if prev_node is not None and active_path[prev_node]:
-            active_path[prev_node] = False
+        # add current node to the active path
+        visited[node] = True
 
         # check if a neighbor is in the active path
         for neighbor in graph.iterNeighbors(node):
-            if active_path[neighbor]:
+            if visited[neighbor]:
                 raise CycleDetectedError
-
-        # add current node to the active path
-        active_path[node] = True
-        # set the previous node to the current node, so that it is removed
-        # from the active path when backtracking
-        prev_node = node
 
     return callback_inner
