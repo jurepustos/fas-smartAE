@@ -26,7 +26,7 @@ def feedback_arc_set(
 
     components = graph.iter_strongly_connected_components()
     for component in components:
-        print("component acyclic", component.is_acyclic())
+        #print("component acyclic", component.is_acyclic())
         # TODO: run in 8 parallel threads (2 per ordering)
         if component.get_num_nodes() >= 2:
             component_nodes = component.get_nodes()
