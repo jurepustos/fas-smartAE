@@ -17,6 +17,7 @@ if __name__ == "__main__":
         print("Error: Invalid folder path.")
         sys.exit(1)
 
+    print(f"{'Filename':<40}{'Arcset Length':<15}{'Time (s)':<10}")
     for filename in os.listdir(folder_path):
         if filename.endswith(".al"):
             file_path = os.path.join(folder_path, filename)
