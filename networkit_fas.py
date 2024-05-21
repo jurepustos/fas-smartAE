@@ -59,15 +59,18 @@ class NetworkitGraph(FASGraph):
 
     def remove_runs(self):
         for u in self.get_nodes():
-            for v in self.graph.iterNeighbors(u):
-                while self.get_in_degree(v) == 1 and self.get_out_degree(v) == 1:
+            for v in self.iter_out_neighbors(u):
+                while (
+                    u != v
+                    and self.get_in_degree(v) == 1
+                    and self.get_out_degree(v) == 1
+                ):
                     w = next(self.iter_out_neighbors(v))
                     if u < w:
                         self.graph.removeNode(v)
                         if not self.graph.hasEdge(u, w):
                             self.graph.addEdge(u, w)
                     v = w
-        return
 
     def remove_2cycles(self):
         FAS = []
@@ -76,14 +79,11 @@ class NetworkitGraph(FASGraph):
         for pair in cy2:
             a = pair[0]
             b = pair[1]
-            print("pair", a, b)
             if self.get_out_degree(b) == 1:
-                edge = self.graph.get_edge(b, a)
-                FAS.append(edge)
+                FAS.append((b, a))
                 self.graph.removeNode(b)
             elif self.get_in_degree(b) == 1:
-                edge = self.graph.get_edge(a, b)
-                FAS.append(edge)
+                FAS.append((a, b))
                 self.graph.removeNode(b)
 
         return FAS
