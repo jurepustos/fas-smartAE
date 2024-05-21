@@ -33,8 +33,42 @@ class NetworkitGraph(FASGraph):
 
     def iter_in_neighbors(self, node: int) -> Iterator[int]:
         return self.graph.iterInNeighbors(node)
+    
+    def remove_neighbors_sink(self, node: int):
+        removed = []
+        for neighbor in self.iter_in_neighbors(node):
+            if self.get_out_degree(neighbor) == 1:
+                removed.append(neighbor)
+                self.graph.removeNode(neighbor)
+        
+        for i in removed:
+            self.remove_neighbors_sink(i)
+        return 
+        
 
     def remove_sinks(self):
+        sinks = [
+            node for node in self.graph.iterNodes() if self.graph.degreeOut(node) == 0
+        ]
+        while sinks:
+            sink = sinks.pop()
+            for neighbor in self.iter_in_neighbors(sink):
+                if self.get_out_degree(neighbor) == 1:
+                    sinks.append(neighbor)
+            self.graph.removeNode(sink)
+
+    def remove_sources(self):
+        sources = [
+            node for node in self.graph.iterNodes() if self.graph.degreeIn(node) == 0
+        ]
+        while sources:
+            source = sources.pop()
+            for neighbor in self.iter_out_neighbors(source):
+                if self.get_in_degree(neighbor) == 1:
+                    sources.append(neighbor)
+            self.graph.removeNode(source)
+    
+    """def remove_sinks(self):
         sinks = [
             node for node in self.graph.iterNodes() if self.graph.degreeOut(node) == 0
         ]
@@ -46,7 +80,8 @@ class NetworkitGraph(FASGraph):
             node for node in self.graph.iterNodes() if self.graph.degreeIn(node) == 0
         ]
         for source in sources:
-            self.graph.removeNode(source)
+            self.graph.removeNode(source)"""
+
 
     def find_2cycles(self):
         twoCycles = []
@@ -169,7 +204,6 @@ class NetworkitGraph(FASGraph):
                 source = nodes[0]
 
                 for target in nodes[1:]:
-                    print(source, target)
                     graph.addEdge(source, target)
         graph.removeMultiEdges()
         graph.removeSelfLoops()
