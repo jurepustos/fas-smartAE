@@ -38,6 +38,14 @@ class FASGraph(ABC):
     @abstractmethod
     def remove_sources(self):
         raise NotImplementedError
+    
+    @abstractmethod
+    def remove_runs(self):
+        raise NotImplementedError
+    
+    @abstractmethod
+    def remove_2cycles(self) -> list[tuple[int, int]]:
+        raise NotImplementedError
 
     @abstractmethod
     def is_acyclic(self):

@@ -1,3 +1,4 @@
+import random
 from copy import copy
 
 from sortedcontainers import SortedList
@@ -6,21 +7,26 @@ from fas_graph import FASGraph
 
 
 def feedback_arc_set(
-    graph: FASGraph, use_smartAE: bool = True, reduce: bool = True
+    graph: FASGraph,
+    use_smartAE: bool = True,
+    reduce: bool = True,
+    random_ordering: bool = False,
+    greedy_orderings: bool = False,
 ) -> list[int]:
     """
     Searches for a minimal Feedback Arc Set of the input graph
     and returns an approximate answer as a list of edges.
     """
-    print('graph acyclic', graph.is_acyclic())
+    total_fas = []
     if reduce:
         graph.remove_sinks()
         graph.remove_sources()
+        graph.remove_runs()
+        total_fas.extend(graph.remove_2cycles())
 
-    total_fas = []
     components = graph.iter_strongly_connected_components()
     for component in components:
-        print('component acyclic', component.is_acyclic())
+        print("component acyclic", component.is_acyclic())
         # TODO: run in 8 parallel threads (2 per ordering)
         if component.get_num_nodes() >= 2:
             component_nodes = component.get_nodes()
@@ -48,9 +54,53 @@ def feedback_arc_set(
                 component_nodes,
                 use_smartAE=use_smartAE,
             )
-            total_fas.extend(min(out_asc, out_desc, in_asc, in_desc, key=len))
+
+            orderings = [out_asc, out_desc, in_asc, in_desc]
+
+            if random_ordering:
+                random.shuffle(component_nodes)
+                random_order = compute_fas(
+                    component, component_nodes, use_smartAE=use_smartAE
+                )
+                orderings.append(random_order)
+
+            if greedy_orderings:
+                scores1, scores2 = compute_scores(component, component_nodes)
+                greedy1 = compute_fas(component, scores1, use_smartAE=use_smartAE)
+                greedy2 = compute_fas(component, scores2, use_smartAE=use_smartAE)
+                orderings.append(greedy1)
+                orderings.append(greedy2)
+
+            total_fas.extend(min(orderings, key=len))
 
     return total_fas
+
+
+def compute_scores(graph: FASGraph, nodes: list[int]) -> tuple[list[int], list[int]]:
+    score1 = {}
+    score2 = {}
+    for node in nodes:
+        in_degree = graph.get_in_degree(node)
+        out_degree = graph.get_out_degree(node)
+        score1[node] = abs(in_degree - out_degree)
+        if out_degree == 0 and in_degree == 0:
+            score2[node] = 0
+            continue
+        if out_degree > 0:
+            ratio = in_degree / out_degree
+        else:
+            ratio = float("inf")
+        if in_degree > 0:
+            inv_ratio = out_degree / in_degree
+        else:
+            inv_ratio = float("inf")
+        score2[node] = max(ratio, inv_ratio)
+
+    scores1 = sorted(score1.items(), key=lambda x: x[1], reverse=True)
+    scores1 = [t[0] for t in scores1]
+    scores2 = sorted(score2.items(), key=lambda item: item[1], reverse=True)
+    scores2 = [t[0] for t in scores2]
+    return scores1, scores2
 
 
 def compute_fas(
@@ -82,9 +132,8 @@ def get_forward_edges(
     forward_graph = copy(graph)
     for i in range(len(ordering)):
         edges = get_forward_edges_from(graph, ordering, i)
-        forward_graph.remove_edges(edges)
         forward_edges.extend(edges)
-        # TODO: instead of checking acyclicity, we could use SCCs instead
+        forward_graph.remove_edges(edges)
         if forward_graph.is_acyclic():
             break
 
@@ -111,9 +160,8 @@ def get_backward_edges(
     backward_graph = copy(graph)
     for i in range(len(ordering)):
         edges = get_backward_edges_from(graph, ordering, i)
-        backward_graph.remove_edges(edges)
         backward_edges.extend(edges)
-        # TODO: instead of checking acyclicity, we could use SCCs instead
+        backward_graph.remove_edges(edges)
         if backward_graph.is_acyclic():
             break
 
@@ -143,8 +191,9 @@ def smart_ae(graph: FASGraph, fas: list[tuple[int, int]]) -> list[tuple[int, int
         added_count = 0
         processed_edges = []
         n = len(fas)
-        for i in range(n):
-            edge = fas[(i + added_count) % n]
+        i = 0
+        while i + added_count < n:
+            edge = fas[i + added_count]
             processed_edges.append(edge)
 
             graph.add_edge(edge)
@@ -154,6 +203,7 @@ def smart_ae(graph: FASGraph, fas: list[tuple[int, int]]) -> list[tuple[int, int
             else:
                 graph.remove_edge(edge)
                 eliminated_edges.append(edge)
+            i += 1
 
         for edge in processed_edges:
             fas.remove(edge)
