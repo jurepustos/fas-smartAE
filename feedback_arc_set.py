@@ -19,8 +19,8 @@ def feedback_arc_set(
     """
     total_fas = []
     if reduce:
-        graph.remove_sinks()
-        graph.remove_sources()
+        #graph.remove_sinks()
+        #graph.remove_sources()
         graph.remove_runs()
         total_fas.extend(graph.remove_2cycles())
 
