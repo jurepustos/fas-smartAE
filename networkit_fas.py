@@ -22,6 +22,9 @@ class NetworkitGraph(FASGraph):
     def get_num_nodes(self) -> int:
         return self.graph.numberOfNodes()
 
+    def get_num_edges(self) -> int:
+        return self.graph.numberOfEdges()
+
     def get_out_degree(self, node: int) -> int:
         return self.graph.degreeOut(node)
 
@@ -67,21 +70,6 @@ class NetworkitGraph(FASGraph):
                 if self.get_in_degree(neighbor) == 1:
                     sources.append(neighbor)
             self.graph.removeNode(source)
-    
-    """def remove_sinks(self):
-        sinks = [
-            node for node in self.graph.iterNodes() if self.graph.degreeOut(node) == 0
-        ]
-        for sink in sinks:
-            self.graph.removeNode(sink)
-
-    def remove_sources(self):
-        sources = [
-            node for node in self.graph.iterNodes() if self.graph.degreeIn(node) == 0
-        ]
-        for source in sources:
-            self.graph.removeNode(source)"""
-
 
     def find_2cycles(self):
         twoCycles = []
@@ -134,7 +122,7 @@ class NetworkitGraph(FASGraph):
                 GraphTools.subgraphFromNodes(self.graph, component_nodes)
             )
 
-    def is_acyclic(self) -> bool:
+    def is_acyclic3(self) -> bool:
         sorter = graphlib.TopologicalSorter()
 
         for node in self.graph.iterNodes():
@@ -160,7 +148,36 @@ class NetworkitGraph(FASGraph):
             return True
         except RuntimeError:
             return False
+        
+    def is_acyclic(self) -> bool:
 
+        num_nodes = self.graph.numberOfNodes() +1
+
+        in_degree = [0] * num_nodes
+        for i in range(num_nodes):
+            in_degree[i] = self.graph.degreeIn(i)
+        
+        queue = []
+        for i in range(num_nodes):
+            if in_degree[i] == 0:
+                queue.append(i)
+        count = 0
+        top_order = []
+
+        while queue:
+            u = queue.pop(0)
+            top_order.append(u)
+            for node in self.iter_in_neighbors(u):
+                in_degree[node] -= 1
+                if in_degree[node] == 0:
+                    queue.append(node)
+            count += 1
+
+        if count != num_nodes:
+            #has cycle
+            return False
+        return True
+    
     def add_edge(self, edge: tuple[int, int]):
         self.graph.addEdge(*edge)
 
