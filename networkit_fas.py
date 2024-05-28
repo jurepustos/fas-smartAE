@@ -151,7 +151,7 @@ class NetworkitGraph(FASGraph):
         
     def is_acyclic(self) -> bool:
 
-        num_nodes = self.graph.numberOfNodes() +1
+        num_nodes = self.graph.numberOfNodes()
 
         in_degree = [0] * num_nodes
         for i in range(num_nodes):
