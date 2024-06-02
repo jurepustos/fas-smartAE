@@ -211,17 +211,12 @@ class NetworkitGraph(FASGraph):
         graph = Graph(directed=True)
 
         with open(filename, 'r') as file:
-            line_count = sum(1 for line in file)
-
-        graph.addNodes(line_count +1)
-
-        with open(filename, 'r') as file:
             for line in file:
                 nodes = list(map(int, line.strip().split()))
                 source = nodes[0]
 
                 for target in nodes[1:]:
-                    graph.addEdge(source, target)
+                    graph.addEdge(source, target, addMissing=True)
         graph.removeMultiEdges()
         graph.removeSelfLoops()
 
