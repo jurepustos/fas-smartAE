@@ -1,12 +1,9 @@
 import sys
-import os
-from feedback_arc_set import feedback_arc_set
-import time
 
+from feedback_arc_set import feedback_arc_set
 from networkit_fas import NetworkitGraph
 
 if __name__ == "__main__":
-
     # if len(sys.argv) < 2:
     #     print("Usage: python script.py <folder_path>")
     #     sys.exit(1)
@@ -25,17 +22,25 @@ if __name__ == "__main__":
     #         arcset = feedback_arc_set(graph, use_smartAE=True, reduce=True)
     #         end_time = time.time()
     #         total_time = end_time - start_time
-    #         
+    #
     #         print(f"{filename:<40}{len(arcset):<15}{total_time:.4f}")
     #
     # # TODO: primer k crkne
     if len(sys.argv) < 2:
         sys.exit(f"Usage: python {sys.argv[0]} [filename]")
-    filename = sys.argv[1]
-    graph = NetworkitGraph.load_from_adjacency_list(filename)
-    start_time = time.time()
-    arcset = feedback_arc_set(graph, use_smartAE=True, reduce=True)
-    end_time = time.time()
-    total_time = end_time - start_time
+    graph = NetworkitGraph.load_from_edge_list(sys.argv[1])
+    arcset, fas_instances = feedback_arc_set(
+        graph,
+        use_smartAE=True,
+        reduce=False,
+        random_ordering=True,
+        greedy_orderings=True,
+    )
+    print(f"V = {graph.get_num_nodes()}, E = {graph.get_num_edges()}")
+    for method, fas in fas_instances.items():
+        graph.remove_edges(fas)
+        print(method, graph.is_acyclic(), len(fas))
+        graph.add_edges(fas)
 
-    print(f"{filename:<40} {len(arcset):<15}{total_time:.4f}")
+    test = NetworkitGraph.is_acyclic(graph)
+    print(arcset)

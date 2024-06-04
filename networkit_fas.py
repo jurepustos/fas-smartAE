@@ -1,5 +1,3 @@
-import graphlib
-import traceback
 from copy import copy
 from typing import Iterator, Self
 
@@ -7,14 +5,26 @@ from networkit.components import StronglyConnectedComponents
 from networkit.graph import Graph
 from networkit.graphio import EdgeListReader
 from networkit.graphtools import GraphTools
-from networkit.traversal import Traversal
 
 from fas_graph import FASGraph
 
 
 class NetworkitGraph(FASGraph):
-    def __init__(self, networkit_graph: Graph):
+    def __init__(
+        self,
+        networkit_graph: Graph,
+        node_labels: dict[str, int] | None = None,
+        node_mapping: dict[int, int] | None = None,
+    ):
         self.graph = networkit_graph
+        self.node_labels = node_labels
+        self.node_mapping = node_mapping
+        self.acyclic = None
+        self.topological_sort: list[int] | None = None
+        self.inv_topological_sort: list[int] | None = None
+
+    def get_node_labels(self) -> dict[str, int]:
+        return self.node_labels
 
     def get_nodes(self) -> list[int]:
         return list(self.graph.iterNodes())
@@ -36,18 +46,17 @@ class NetworkitGraph(FASGraph):
 
     def iter_in_neighbors(self, node: int) -> Iterator[int]:
         return self.graph.iterInNeighbors(node)
-    
+
     def remove_neighbors_sink(self, node: int):
         removed = []
         for neighbor in self.iter_in_neighbors(node):
             if self.get_out_degree(neighbor) == 1:
                 removed.append(neighbor)
                 self.graph.removeNode(neighbor)
-        
+
         for i in removed:
             self.remove_neighbors_sink(i)
-        return 
-        
+        return
 
     def remove_sinks(self):
         sinks = [
@@ -118,75 +127,66 @@ class NetworkitGraph(FASGraph):
         cc = StronglyConnectedComponents(self.graph)
         cc.run()
         for component_nodes in cc.getComponents():
-            yield self.__class__(
-                GraphTools.subgraphFromNodes(self.graph, component_nodes)
-            )
+            subgraph = GraphTools.subgraphFromNodes(self.graph, component_nodes)
+            mapping = GraphTools.getContinuousNodeIds(subgraph)
+            compact_subgraph = GraphTools.getCompactedGraph(subgraph, mapping)
+            yield NetworkitGraph(compact_subgraph, mapping)
 
-    def is_acyclic3(self) -> bool:
-        sorter = graphlib.TopologicalSorter()
-
-        for node in self.graph.iterNodes():
-            sorter.add(node)
-        for source, target in self.graph.iterEdges():
-            sorter.add(source, target)
-        try:
-            _ = [*sorter.static_order()]
-            return True
-        except graphlib.CycleError:
-            return False
-
-    def is_acyclic2(self) -> bool:
-        if self.graph.numberOfNodes() == 0 or self.graph.numberOfEdges() == 0:
-            return True
-
-        try:
-            Traversal.DFSfrom(
-                self.graph,
-                next(self.graph.iterNodes()),
-                acyclic_dfs_callback(self.graph),
-            )
-            return True
-        except RuntimeError:
-            return False
-        
     def is_acyclic(self) -> bool:
+        if self.acyclic is not None:
+            return self.acyclic
 
-        num_nodes = self.graph.numberOfNodes()
-
-        in_degree = [0] * num_nodes
-        for i in range(num_nodes):
-            in_degree[i] = self.graph.degreeIn(i)
-        
-        queue = []
-        for i in range(num_nodes):
-            if in_degree[i] == 0:
-                queue.append(i)
-        count = 0
-        top_order = []
-
-        while queue:
-            u = queue.pop(0)
-            top_order.append(u)
-            for node in self.iter_in_neighbors(u):
-                in_degree[node] -= 1
-                if in_degree[node] == 0:
-                    queue.append(node)
-            count += 1
-
-        if count != num_nodes:
-            #has cycle
+        try:
+            self.topological_sort = GraphTools.topologicalSort(self.graph)
+            self.inv_topological_sort = len(self.topological_sort) * []
+            for i, node in enumerate(self.topological_sort):
+                self.inv_topological_sort[node] = i
+        except RuntimeError:
+            self.acyclic = False
             return False
+
+        self.acyclic = True
         return True
-    
+
+    def edge_preserves_acyclicity(self, edge: tuple[int, int]) -> bool:
+        if not self.acyclic:
+            # we only care if we know the graph is acyclic
+            return False
+
+        source, target = edge
+        return self.inv_topological_sort[target] >= self.inv_topological_sort[source]
+
+    def add_edges(self, edges: list[tuple[int, int]]):
+        for edge in edges:
+            self.add_edge(edge)
+
     def add_edge(self, edge: tuple[int, int]):
-        self.graph.addEdge(*edge)
+        # check if the edge violates the topological ordering,
+        # making the graph cyclic.
+        if not self.edge_preserves_acyclicity(edge):
+            self.topological_sort = None
+            self.inv_topological_sort = None
+            self.acyclic = False
+
+        source, target = edge
+        is_new = self.graph.addEdge(source, target, checkMultiEdges=True)
+        if not is_new:
+            self.graph.increaseWeight(source, target, 1)
 
     def remove_edge(self, edge: tuple[int, int]):
-        self.graph.removeEdge(*edge)
+        # removal of an edge can make the graph acyclic
+        if not self.acyclic:
+            self.acyclic = None
+
+        source, target = edge
+        if self.graph.weight(source, target) > 1:
+            self.graph.increaseWeight(source, target, -1)
+        else:
+            self.graph.removeEdge(source, target)
 
     def remove_edges(self, edges: list[tuple[int, int]]):
         for edge in edges:
-            self.graph.removeEdge(*edge)
+            self.remove_edge(edge)
 
     @classmethod
     def load_from_edge_list(cls, filename: str):
@@ -194,14 +194,12 @@ class NetworkitGraph(FASGraph):
         Load the graph from an edge-list representation.
         The resulting graph does not have isolated vertices.
         """
-        reader = EdgeListReader("\t", 0, directed=True)
+        reader = EdgeListReader("\t", 0, directed=True, continuous=False)
+        labels = reader.getNodeMap()
         graph = reader.read(filename)
         graph.removeMultiEdges()
         graph.removeSelfLoops()
-        return cls(graph)
-
-    def __copy__(self):
-        return NetworkitGraph(copy(self.graph))
+        return NetworkitGraph(graph, node_labels=labels)
 
     @classmethod
     def load_from_adjacency_list(cls, filename: str):
@@ -209,36 +207,26 @@ class NetworkitGraph(FASGraph):
         Load the graph from an adjacency-list representation.
         """
         graph = Graph(directed=True)
+        labels = {}
 
-        with open(filename, 'r') as file:
+        with open(filename, "r") as file:
             for line in file:
                 nodes = list(map(int, line.strip().split()))
                 source = nodes[0]
+                if source not in labels:
+                    labels[source] = graph.addNode()
 
                 for target in nodes[1:]:
-                    graph.addEdge(source, target, addMissing=True)
-        graph.removeMultiEdges()
+                    if target not in labels:
+                        labels[target] = graph.addNode()
+                    graph.addEdge(source, target, checkMultiEdges=True)
         graph.removeSelfLoops()
 
-        return cls(graph)
+        return NetworkitGraph(graph, node_labels=labels)
 
-class CycleDetectedError(Exception):
-    def __init__(self, message=None):
-        if message is None:
-            message = "A cycle was detected"
-        super().__init__(message)
-
-
-def acyclic_dfs_callback(graph: Graph):
-    visited = {node: False for node in graph.iterNodes()}
-
-    def callback_inner(node):
-        # add current node to the active path
-        visited[node] = True
-
-        # check if a neighbor is in the active path
-        for neighbor in graph.iterNeighbors(node):
-            if visited[neighbor]:
-                raise CycleDetectedError
-
-    return callback_inner
+    def __copy__(self):
+        return NetworkitGraph(
+            copy(self.graph),
+            node_labels=copy(self.node_labels),
+            node_mapping=copy(self.node_mapping),
+        )
