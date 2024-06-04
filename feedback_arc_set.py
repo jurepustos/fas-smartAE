@@ -133,16 +133,16 @@ def compute_fas(
     forward_edges, forward_graph = get_forward_edges(graph, ordering)
     backward_edges, backward_graph = get_backward_edges(graph, ordering)
 
-    fas_instances[ordering_name + "_forward"] = forward_edges
-    fas_instances[ordering_name + "_backward"] = backward_edges
+    fas_instances[ordering_name + "_forward"] = copy(forward_edges)
+    fas_instances[ordering_name + "_backward"] = copy(backward_edges)
 
     # reduce the size of the FAS with the smartAE heuristic
     if use_smartAE:
         forward_edges = smart_ae(forward_graph, forward_edges)
         backward_edges = smart_ae(backward_graph, backward_edges)
 
-    fas_instances[ordering_name + "_forward_smartAE"] = forward_edges
-    fas_instances[ordering_name + "_backward_smartAE"] = backward_edges
+    fas_instances[ordering_name + "_forward_smartAE"] = copy(forward_edges)
+    fas_instances[ordering_name + "_backward_smartAE"] = copy(backward_edges)
     return min(forward_edges, backward_edges, key=len)
 
 
