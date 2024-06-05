@@ -29,7 +29,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         sys.exit(f"Usage: python {sys.argv[0]} [filename]")
     graph = NetworkitGraph.load_from_edge_list(sys.argv[1])
-    arcset, fas_instances = feedback_arc_set(
+    fas_instances = feedback_arc_set(
         graph,
         use_smartAE=True,
         reduce=False,
@@ -38,9 +38,6 @@ if __name__ == "__main__":
     )
     print(f"V = {graph.get_num_nodes()}, E = {graph.get_num_edges()}")
     for method, fas in fas_instances.items():
-        graph.remove_edges(fas)
-        print(method, graph.is_acyclic(), len(fas), fas)
-        graph.add_edges(fas)
+        print(method, len(fas), fas)
 
     test = NetworkitGraph.is_acyclic(graph)
-    print(arcset)

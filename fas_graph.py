@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
 from typing import Iterator, Self
 
-
 class FASGraph(ABC):
     @abstractmethod
-    def get_node_labels(self) -> dict[str, int]:
+    def get_node_labels(self) -> dict[int, str]:
         raise NotImplementedError
 
     @abstractmethod
@@ -48,7 +47,7 @@ class FASGraph(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def remove_2cycles(self) -> list[tuple[int, int]]:
+    def remove_2cycles(self) -> dict[int, int]:
         raise NotImplementedError
 
     @abstractmethod

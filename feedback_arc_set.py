@@ -1,8 +1,8 @@
 import random
+from collections import defaultdict
 from copy import copy
 
 from sortedcontainers import SortedList
-
 from fas_graph import FASGraph
 
 
@@ -12,21 +12,21 @@ def feedback_arc_set(
     reduce: bool = True,
     random_ordering: bool = False,
     greedy_orderings: bool = False,
-) -> tuple[list[int], dict[str, int]]:
+) -> dict[str, tuple[str, str]]:
     """
     Searches for a minimal Feedback Arc Set of the input graph
     and returns an approximate answer as a list of edges.
     """
-    total_fas = []
-    fas_instances = {}
+    fas_instances = defaultdict(list)
     if reduce:
         # graph.remove_sinks()
         # graph.remove_sources()
         graph.remove_runs()
-        total_fas.extend(graph.remove_2cycles())
+        graph.remove_2cycles()
 
     components = graph.iter_strongly_connected_components()
     for component in components:
+        component_fas_instances = {}
         # TODO: run in 8 parallel threads (2 per ordering)
         if component.get_num_nodes() >= 2:
             component_nodes = component.get_nodes()
@@ -35,7 +35,7 @@ def feedback_arc_set(
                 component,
                 component_nodes,
                 "out_asc",
-                fas_instances,
+                component_fas_instances,
                 use_smartAE=use_smartAE,
             )
             component_nodes.reverse()
@@ -43,7 +43,7 @@ def feedback_arc_set(
                 component,
                 component_nodes,
                 "out_desc",
-                fas_instances,
+                component_fas_instances,
                 use_smartAE=use_smartAE,
             )
             component_nodes.sort(key=component.get_in_degree)
@@ -51,7 +51,7 @@ def feedback_arc_set(
                 component,
                 component_nodes,
                 "in_asc",
-                fas_instances,
+                component_fas_instances,
                 use_smartAE=use_smartAE,
             )
             component_nodes.reverse()
@@ -59,7 +59,7 @@ def feedback_arc_set(
                 component,
                 component_nodes,
                 "in_desc",
-                fas_instances,
+                component_fas_instances,
                 use_smartAE=use_smartAE,
             )
 
@@ -71,7 +71,7 @@ def feedback_arc_set(
                     component,
                     component_nodes,
                     "random_order",
-                    fas_instances,
+                    component_fas_instances,
                     use_smartAE=use_smartAE,
                 )
                 orderings.append(random_order)
@@ -79,17 +79,29 @@ def feedback_arc_set(
             if greedy_orderings:
                 scores1, scores2 = compute_scores(component, component_nodes)
                 greedy1 = compute_fas(
-                    component, scores1, "greedy1", fas_instances, use_smartAE=use_smartAE
+                    component,
+                    scores1,
+                    "greedy1",
+                    component_fas_instances,
+                    use_smartAE=use_smartAE,
                 )
                 greedy2 = compute_fas(
-                    component, scores2, "greedy1", fas_instances, use_smartAE=use_smartAE
+                    component,
+                    scores2,
+                    "greedy1",
+                    component_fas_instances,
+                    use_smartAE=use_smartAE,
                 )
                 orderings.append(greedy1)
                 orderings.append(greedy2)
 
-            total_fas.extend(min(orderings, key=len))
+            for name, instance in component_fas_instances.items():
+                for source, target in instance:
+                    source_label = component.get_node_labels()[source]
+                    target_label = component.get_node_labels()[target]
+                    fas_instances[name].append((source_label, target_label))
 
-    return total_fas, fas_instances
+    return fas_instances
 
 
 def compute_scores(graph: FASGraph, nodes: list[int]) -> tuple[list[int], list[int]]:

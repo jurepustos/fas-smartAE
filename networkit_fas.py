@@ -13,17 +13,15 @@ class NetworkitGraph(FASGraph):
     def __init__(
         self,
         networkit_graph: Graph,
-        node_labels: dict[str, int] | None = None,
-        node_mapping: dict[int, int] | None = None,
+        node_labels: dict[int, str] | None = None,
     ):
         self.graph = networkit_graph
         self.node_labels = node_labels
-        self.node_mapping = node_mapping
         self.acyclic = None
         self.topological_sort: list[int] | None = None
         self.inv_topological_sort: list[int] | None = None
 
-    def get_node_labels(self) -> dict[str, int]:
+    def get_node_labels(self) -> dict[int, str]:
         return self.node_labels
 
     def get_nodes(self) -> list[int]:
@@ -104,7 +102,8 @@ class NetworkitGraph(FASGraph):
                             self.graph.addEdge(u, w)
                     v = w
 
-    def remove_2cycles(self):
+    def remove_2cycles(self) -> tuple[list[tuple[int, int], dict[int, int]]:
+        # TODO: return all guaranteed FAS vertices as well as a description of node merges
         FAS = []
         cy2 = self.find_2cycles()
 
@@ -130,7 +129,11 @@ class NetworkitGraph(FASGraph):
             subgraph = GraphTools.subgraphFromNodes(self.graph, component_nodes)
             mapping = GraphTools.getContinuousNodeIds(subgraph)
             compact_subgraph = GraphTools.getCompactedGraph(subgraph, mapping)
-            yield NetworkitGraph(compact_subgraph, mapping)
+            labels = {}
+            for orig_node, mapped_node in mapping.items():
+                labels[mapped_node] = self.node_labels[orig_node]
+
+            yield NetworkitGraph(compact_subgraph, node_labels=labels)
 
     def is_acyclic(self) -> bool:
         if self.acyclic is not None:
@@ -195,11 +198,14 @@ class NetworkitGraph(FASGraph):
         The resulting graph does not have isolated vertices.
         """
         reader = EdgeListReader("\t", 0, directed=True, continuous=False)
-        labels = reader.getNodeMap()
         graph = reader.read(filename)
+        labels = reader.getNodeMap()
+        inverse_labels = {}
+        for label, node in labels.items():
+            inverse_labels[node] = label
         graph.removeMultiEdges()
         graph.removeSelfLoops()
-        return NetworkitGraph(graph, node_labels=labels)
+        return NetworkitGraph(graph, node_labels=inverse_labels)
 
     @classmethod
     def load_from_adjacency_list(cls, filename: str):
@@ -222,11 +228,18 @@ class NetworkitGraph(FASGraph):
                     graph.addEdge(source, target, checkMultiEdges=True)
         graph.removeSelfLoops()
 
-        return NetworkitGraph(graph, node_labels=labels)
+        inverse_labels = {}
+        for label, node in labels.items():
+            inverse_labels[node] = label
+
+        return NetworkitGraph(graph, node_labels=inverse_labels)
 
     def __copy__(self):
-        return NetworkitGraph(
+        copied_graph = NetworkitGraph(
             copy(self.graph),
             node_labels=copy(self.node_labels),
-            node_mapping=copy(self.node_mapping),
         )
+        copied_graph.acyclic = self.acyclic
+        copied_graph.topological_sort = copy(self.topological_sort)
+        copied_graph.inv_topological_sort = copy(self.inv_topological_sort)
+        return copied_graph
