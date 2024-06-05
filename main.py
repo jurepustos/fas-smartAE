@@ -39,7 +39,7 @@ if __name__ == "__main__":
     print(f"V = {graph.get_num_nodes()}, E = {graph.get_num_edges()}")
     for method, fas in fas_instances.items():
         graph.remove_edges(fas)
-        print(method, graph.is_acyclic(), len(fas))
+        print(method, graph.is_acyclic(), len(fas), fas)
         graph.add_edges(fas)
 
     test = NetworkitGraph.is_acyclic(graph)

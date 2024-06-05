@@ -138,7 +138,7 @@ class NetworkitGraph(FASGraph):
 
         try:
             self.topological_sort = GraphTools.topologicalSort(self.graph)
-            self.inv_topological_sort = len(self.topological_sort) * []
+            self.inv_topological_sort = len(self.topological_sort) * [0]
             for i, node in enumerate(self.topological_sort):
                 self.inv_topological_sort[node] = i
         except RuntimeError:
@@ -169,7 +169,7 @@ class NetworkitGraph(FASGraph):
             self.acyclic = False
 
         source, target = edge
-        is_new = self.graph.addEdge(source, target, checkMultiEdges=True)
+        is_new = self.graph.addEdge(source, target, checkMultiEdge=True)
         if not is_new:
             self.graph.increaseWeight(source, target, 1)
 

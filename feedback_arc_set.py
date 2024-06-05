@@ -217,7 +217,7 @@ def smart_ae(graph: FASGraph, fas: list[tuple[int, int]]) -> list[tuple[int, int
             edge = fas[i + added_count]
             processed_edges.append(edge)
 
-            if not graph.edge_preserves_acyclicity(edge):
+            if graph.edge_preserves_acyclicity(edge):
                 graph.add_edge(edge)
                 added_edges.append(edge)
                 added_count += 1
