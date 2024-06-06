@@ -1,3 +1,4 @@
+from collections import defaultdict
 from copy import copy
 from typing import Iterator, Self
 
@@ -6,7 +7,7 @@ from networkit.graph import Graph
 from networkit.graphio import EdgeListReader
 from networkit.graphtools import GraphTools
 
-from fas_graph import FASGraph
+from fas_graph import Edge, FASGraph
 
 
 class NetworkitGraph(FASGraph):
@@ -81,13 +82,15 @@ class NetworkitGraph(FASGraph):
     def find_2cycles(self):
         twoCycles = []
         for u in self.get_nodes():
-            for v in self.graph.iterNeighbors(u):
-                for w in self.graph.iterNeighbors(v):
-                    if u == w and u < v:
-                        twoCycles.append((u, v))
+            for v in self.iter_out_neighbors(u):
+                if u < v:
+                    for w in self.iter_out_neighbors(v):
+                        if u == w:
+                            twoCycles.append((u, v))
         return twoCycles
 
-    def remove_runs(self):
+    def remove_runs(self) -> dict[Edge, list[Edge]]:
+        merged_edges = defaultdict(list)
         for u in self.get_nodes():
             for v in self.iter_out_neighbors(u):
                 while (
@@ -96,14 +99,19 @@ class NetworkitGraph(FASGraph):
                     and self.get_out_degree(v) == 1
                 ):
                     w = next(self.iter_out_neighbors(v))
-                    if u < w:
+                    if u != w:
+                        if (u, v) in merged_edges:
+                            merged_edges[(u, w)].extend(merged_edges[(u, v)])
+                            # v only has u and w as neighbors
+                            del merged_edges[(u, v)]
+                        merged_edges[(u, w)].append((u, v))
                         self.graph.removeNode(v)
-                        if not self.graph.hasEdge(u, w):
-                            self.graph.addEdge(u, w)
+                        self.graph.increaseWeight(u, w, 1)
                     v = w
 
-    def remove_2cycles(self) -> tuple[list[tuple[int, int], dict[int, int]]:
-        # TODO: return all guaranteed FAS vertices as well as a description of node merges
+        return merged_edges
+
+    def remove_2cycles(self) -> list[Edge]:
         FAS = []
         cy2 = self.find_2cycles()
 
@@ -111,10 +119,12 @@ class NetworkitGraph(FASGraph):
             a = pair[0]
             b = pair[1]
             if self.get_out_degree(b) == 1:
-                FAS.append((b, a))
+                for _ in range(self.get_edge_weight(b, a)):
+                    FAS.append((b, a))
                 self.graph.removeNode(b)
             elif self.get_in_degree(b) == 1:
-                FAS.append((a, b))
+                for _ in range(self.get_edge_weight(a, b)):
+                    FAS.append((b, a))
                 self.graph.removeNode(b)
 
         return FAS
@@ -156,40 +166,39 @@ class NetworkitGraph(FASGraph):
             # we only care if we know the graph is acyclic
             return False
 
-        source, target = edge
         return self.inv_topological_sort[target] >= self.inv_topological_sort[source]
 
-    def add_edges(self, edges: list[tuple[int, int]]):
-        for edge in edges:
-            self.add_edge(edge)
+    def get_edge_weight(self, source: int, target: int):
+        return self.graph.weight(source, target)
 
-    def add_edge(self, edge: tuple[int, int]):
+    def add_edges(self, edges: list[tuple[int, int]]):
+        for source, target in edges:
+            self.add_edge(source, target)
+
+    def add_edge(self, source: int, target: int):
         # check if the edge violates the topological ordering,
         # making the graph cyclic.
-        if not self.edge_preserves_acyclicity(edge):
+        if not self.edge_preserves_acyclicity(source, target):
             self.topological_sort = None
             self.inv_topological_sort = None
             self.acyclic = False
 
-        source, target = edge
-        is_new = self.graph.addEdge(source, target, checkMultiEdge=True)
-        if not is_new:
-            self.graph.increaseWeight(source, target, 1)
+        source, target = Edge
+        self.graph.increaseWeight(source, target, 1)
 
-    def remove_edge(self, edge: tuple[int, int]):
+    def remove_edge(self, source: int, target: int):
         # removal of an edge can make the graph acyclic
         if not self.acyclic:
             self.acyclic = None
 
-        source, target = edge
         if self.graph.weight(source, target) > 1:
             self.graph.increaseWeight(source, target, -1)
         else:
             self.graph.removeEdge(source, target)
 
     def remove_edges(self, edges: list[tuple[int, int]]):
-        for edge in edges:
-            self.remove_edge(edge)
+        for source, target in edges:
+            self.remove_edge(source, target)
 
     @classmethod
     def load_from_edge_list(cls, filename: str):

@@ -1,33 +1,36 @@
 from abc import ABC, abstractmethod
 from typing import Iterator, Self
 
+Node = int
+Edge = tuple[Node, Node]
+
 class FASGraph(ABC):
     @abstractmethod
-    def get_node_labels(self) -> dict[int, str]:
+    def get_node_labels(self) -> dict[Node, str]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_nodes(self) -> list[int]:
+    def get_nodes(self) -> list[Node]:
         raise NotImplementedError
 
     @abstractmethod
-    def get_num_nodes(self) -> int:
+    def get_num_nodes(self) -> Node:
         raise NotImplementedError
 
     @abstractmethod
-    def get_out_degree(self, node: int) -> int:
+    def get_out_degree(self, node: Node) -> int:
         raise NotImplementedError
 
     @abstractmethod
-    def get_in_degree(self, node: int) -> int:
+    def get_in_degree(self, node: Node) -> int:
         raise NotImplementedError
 
     @abstractmethod
-    def iter_out_neighbors(self, node: int) -> Iterator[int]:
+    def iter_out_neighbors(self, node: Node) -> Iterator[Node]:
         raise NotImplementedError
 
     @abstractmethod
-    def iter_in_neighbors(self, node: int) -> Iterator[int]:
+    def iter_in_neighbors(self, node: Node) -> Iterator[Node]:
         raise NotImplementedError
 
     @abstractmethod
@@ -43,11 +46,11 @@ class FASGraph(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def remove_runs(self):
+    def remove_runs(self) -> dict[Edge, list[Edge]]:
         raise NotImplementedError
 
     @abstractmethod
-    def remove_2cycles(self) -> dict[int, int]:
+    def remove_2cycles(self) -> list[Edge]:
         raise NotImplementedError
 
     @abstractmethod
@@ -55,7 +58,7 @@ class FASGraph(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def edge_preserves_acyclicity(self, edge: tuple[int, int]) -> bool:
+    def edge_preserves_acyclicity(self, source: Node, target: Node) -> bool:
         """
         Returns True if adding the edge is guaranteed to keep the graph acyclic.
         Otherwise, return False. In particular, if the graph is currently not acyclic, 
@@ -64,19 +67,23 @@ class FASGraph(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def add_edges(self, edges: list[tuple[int, int]]):
+    def get_edge_weight(self, source: Node, target: Node):
         raise NotImplementedError
 
     @abstractmethod
-    def add_edge(self, edge: tuple[int, int]):
+    def add_edges(self, edges: list[Edge]):
         raise NotImplementedError
 
     @abstractmethod
-    def remove_edge(self, edge: tuple[int, int]):
+    def add_edge(self, source: Node, target: Node):
         raise NotImplementedError
 
     @abstractmethod
-    def remove_edges(self, edges: list[tuple[int, int]]):
+    def remove_edge(self, source: Node, target: Node):
+        raise NotImplementedError
+
+    @abstractmethod
+    def remove_edges(self, edges: list[Edge]):
         raise NotImplementedError
 
     @classmethod
