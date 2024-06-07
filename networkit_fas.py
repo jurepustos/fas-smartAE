@@ -4,49 +4,48 @@ from typing import Iterator, Self
 
 from networkit.components import StronglyConnectedComponents
 from networkit.graph import Graph
-from networkit.graphio import EdgeListReader
 from networkit.graphtools import GraphTools
 
-from fas_graph import Edge, FASGraph
+from fas_graph import Edge, FASGraph, Node
 
 
 class NetworkitGraph(FASGraph):
     def __init__(
         self,
         networkit_graph: Graph,
-        node_labels: dict[int, str] | None = None,
+        node_labels: list[str] | None = None,
     ):
         self.graph = networkit_graph
         self.node_labels = node_labels
         self.acyclic = None
-        self.topological_sort: list[int] | None = None
-        self.inv_topological_sort: list[int] | None = None
+        self.topological_sort: list[Node] | None = None
+        self.inv_topological_sort: list[Node] | None = None
 
-    def get_node_labels(self) -> dict[int, str]:
+    def get_node_labels(self) -> dict[Node, str]:
         return self.node_labels
 
-    def get_nodes(self) -> list[int]:
+    def get_nodes(self) -> list[Node]:
         return list(self.graph.iterNodes())
 
-    def get_num_nodes(self) -> int:
+    def get_num_nodes(self) -> Node:
         return self.graph.numberOfNodes()
 
-    def get_num_edges(self) -> int:
+    def get_num_edges(self) -> Node:
         return self.graph.numberOfEdges()
 
-    def get_out_degree(self, node: int) -> int:
+    def get_out_degree(self, node: Node) -> int:
         return self.graph.degreeOut(node)
 
-    def get_in_degree(self, node: int) -> int:
+    def get_in_degree(self, node: Node) -> int:
         return self.graph.degreeIn(node)
 
-    def iter_out_neighbors(self, node: int) -> Iterator[int]:
+    def iter_out_neighbors(self, node: Node) -> Iterator[Node]:
         return self.graph.iterNeighbors(node)
 
-    def iter_in_neighbors(self, node: int) -> Iterator[int]:
+    def iter_in_neighbors(self, node: Node) -> Iterator[Node]:
         return self.graph.iterInNeighbors(node)
 
-    def remove_neighbors_sink(self, node: int):
+    def remove_neighbors_sink(self, node: Node):
         removed = []
         for neighbor in self.iter_in_neighbors(node):
             if self.get_out_degree(neighbor) == 1:
@@ -161,21 +160,21 @@ class NetworkitGraph(FASGraph):
         self.acyclic = True
         return True
 
-    def edge_preserves_acyclicity(self, edge: tuple[int, int]) -> bool:
+    def edge_preserves_acyclicity(self, source: Node, target: Node) -> bool:
         if not self.acyclic:
             # we only care if we know the graph is acyclic
             return False
 
         return self.inv_topological_sort[target] >= self.inv_topological_sort[source]
 
-    def get_edge_weight(self, source: int, target: int):
-        return self.graph.weight(source, target)
+    def get_edge_weight(self, source: Node, target: Node) -> int:
+        return int(self.graph.weight(source, target))
 
-    def add_edges(self, edges: list[tuple[int, int]]):
+    def add_edges(self, edges: list[tuple[Node, Node]]):
         for source, target in edges:
             self.add_edge(source, target)
 
-    def add_edge(self, source: int, target: int):
+    def add_edge(self, source: Node, target: Node):
         # check if the edge violates the topological ordering,
         # making the graph cyclic.
         if not self.edge_preserves_acyclicity(source, target):
@@ -183,10 +182,9 @@ class NetworkitGraph(FASGraph):
             self.inv_topological_sort = None
             self.acyclic = False
 
-        source, target = Edge
         self.graph.increaseWeight(source, target, 1)
 
-    def remove_edge(self, source: int, target: int):
+    def remove_edge(self, source: Node, target: Node):
         # removal of an edge can make the graph acyclic
         if not self.acyclic:
             self.acyclic = None
@@ -196,7 +194,7 @@ class NetworkitGraph(FASGraph):
         else:
             self.graph.removeEdge(source, target)
 
-    def remove_edges(self, edges: list[tuple[int, int]]):
+    def remove_edges(self, edges: list[tuple[Node, Node]]):
         for source, target in edges:
             self.remove_edge(source, target)
 
@@ -206,14 +204,31 @@ class NetworkitGraph(FASGraph):
         Load the graph from an edge-list representation.
         The resulting graph does not have isolated vertices.
         """
-        reader = EdgeListReader("\t", 0, directed=True, continuous=False)
-        graph = reader.read(filename)
-        labels = reader.getNodeMap()
-        inverse_labels = {}
+        graph = Graph(weighted=True, directed=True)
+        labels = {}
+
+        with open(filename, "r") as file:
+            for line in file:
+                nodes = [int(word) for word in line.strip().split()]
+                source = nodes[0]
+
+                # line is a comment
+                if source == "#":
+                    continue
+
+                if source not in labels:
+                    labels[source] = graph.addNode()
+
+                target = nodes[1]
+                if target not in labels:
+                    labels[target] = graph.addNode()
+                graph.addEdge(labels[source], labels[target], checkMultiEdge=True)
+        graph.removeSelfLoops()
+
+        inverse_labels = graph.numberOfNodes() * [None]
         for label, node in labels.items():
             inverse_labels[node] = label
-        graph.removeMultiEdges()
-        graph.removeSelfLoops()
+
         return NetworkitGraph(graph, node_labels=inverse_labels)
 
     @classmethod
@@ -221,23 +236,29 @@ class NetworkitGraph(FASGraph):
         """
         Load the graph from an adjacency-list representation.
         """
-        graph = Graph(directed=True)
+        graph = Graph(directed=True, weighted=True)
         labels = {}
 
         with open(filename, "r") as file:
             for line in file:
                 nodes = list(map(int, line.strip().split()))
                 source = nodes[0]
+                # line is a comment
+                if source == "#":
+                    continue
+                if source == "#":
+                    continue
+
                 if source not in labels:
                     labels[source] = graph.addNode()
 
                 for target in nodes[1:]:
                     if target not in labels:
                         labels[target] = graph.addNode()
-                    graph.addEdge(source, target, checkMultiEdges=True)
+                    graph.addEdge(labels[source], labels[target], checkMultiEdge=True)
         graph.removeSelfLoops()
 
-        inverse_labels = {}
+        inverse_labels = graph.numberOfNodes() * [None]
         for label, node in labels.items():
             inverse_labels[node] = label
 

@@ -1,5 +1,4 @@
 import random
-from collections import defaultdict
 from copy import copy
 
 from sortedcontainers import SortedList
@@ -20,7 +19,7 @@ def feedback_arc_set(
     and returns an approximate answer as a list of edges.
     """
     fas_builder = FASBuilder()
-    reduction_merged_edges = []
+    reduction_merged_edges = {}
     reduction_fas_edges = []
     if reduce:
         reduction_merged_edges = graph.remove_runs()
@@ -28,7 +27,9 @@ def feedback_arc_set(
 
     components = graph.iter_strongly_connected_components()
     for component in components:
-        component_fas_builder = FASBuilder(reduction_fas_edges, reduction_merged_edges)
+        component_fas_builder = FASBuilder()
+        component_fas_builder.add_fas_edges(reduction_fas_edges)
+        component_fas_builder.add_merged_edges(reduction_merged_edges)
 
         # TODO: run in 8 parallel threads (2 per ordering)
         if component.get_num_nodes() < 2:
@@ -104,9 +105,17 @@ def feedback_arc_set(
 
         fas_builder.merge(component_fas_builder)
 
-    return {
-        name: ordering.build_fas() for name, ordering in fas_builder.orderings.items()
+    instances = {
+        f"{name}_forward": ordering.build_forward_fas(graph.get_node_labels())
+        for name, ordering in fas_builder.orderings.items()
     }
+    instances.update(
+        {
+            f"{name}_backward": ordering.build_backward_fas(graph.get_node_labels())
+            for name, ordering in fas_builder.orderings.items()
+        }
+    )
+    return instances
 
 
 def compute_scores(graph: FASGraph, nodes: list[int]) -> tuple[list[int], list[int]]:
@@ -139,7 +148,6 @@ def compute_scores(graph: FASGraph, nodes: list[int]) -> tuple[list[int], list[i
 def compute_fas(
     graph: FASGraph,
     ordering: list[int],
-    ordering_name: str,
     use_smartAE: bool = True,
 ) -> OrderingFASBuilder:
     """
@@ -235,7 +243,7 @@ def smart_ae(graph: FASGraph, fas: list[tuple[int, int]]) -> list[tuple[int, int
             processed_edges.append(edge)
 
             if graph.edge_preserves_acyclicity(*edge):
-                graph.add_edge(edge)
+                graph.add_edge(*edge)
                 added_edges.append(edge)
                 added_count += 1
             i += 1
