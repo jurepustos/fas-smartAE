@@ -17,7 +17,6 @@ class NetworkitGraph(FASGraph):
     ):
         self.graph = networkit_graph
         self.node_labels = node_labels
-        self.acyclic = None
         self.topological_sort: list[Node] | None = None
         self.inv_topological_sort: list[Node] | None = None
 
@@ -152,24 +151,22 @@ class NetworkitGraph(FASGraph):
             yield NetworkitGraph(compact_subgraph, node_labels=labels)
 
     def is_acyclic(self) -> bool:
-        if self.acyclic is not None:
-            return self.acyclic
+        if self.topological_sort is not None:
+            return True
 
         try:
             self.topological_sort = GraphTools.topologicalSort(self.graph)
-            self.inv_topological_sort = len(self.topological_sort) * [0]
-            for i, node in enumerate(self.topological_sort):
-                self.inv_topological_sort[node] = i
         except RuntimeError:
-            self.acyclic = False
             return False
 
-        self.acyclic = True
+        self.inv_topological_sort = len(self.topological_sort) * [0]
+        for i, node in enumerate(self.topological_sort):
+            self.inv_topological_sort[node] = i
         return True
 
-    def edge_preserves_acyclicity(self, source: Node, target: Node) -> bool:
-        if not self.acyclic:
-            # we only care if we know the graph is acyclic
+    def edge_preserves_topology(self, source: Node, target: Node) -> bool:
+        if self.inv_topological_sort is None:
+            # we only know the answer if we know the graph is acyclic
             return False
 
         return self.inv_topological_sort[target] >= self.inv_topological_sort[source]
@@ -184,18 +181,13 @@ class NetworkitGraph(FASGraph):
     def add_edge(self, source: Node, target: Node):
         # check if the edge violates the topological ordering,
         # making the graph cyclic.
-        if not self.edge_preserves_acyclicity(source, target):
+        if not self.edge_preserves_topology(source, target):
             self.topological_sort = None
             self.inv_topological_sort = None
-            self.acyclic = False
 
         self.graph.increaseWeight(source, target, 1)
 
     def remove_edge(self, source: Node, target: Node):
-        # removal of an edge can make the graph acyclic
-        if not self.acyclic:
-            self.acyclic = None
-
         if self.graph.weight(source, target) > 1:
             self.graph.increaseWeight(source, target, -1)
         else:
@@ -274,7 +266,6 @@ class NetworkitGraph(FASGraph):
             copy(self.graph),
             node_labels=copy(self.node_labels),
         )
-        copied_graph.acyclic = self.acyclic
         copied_graph.topological_sort = copy(self.topological_sort)
         copied_graph.inv_topological_sort = copy(self.inv_topological_sort)
         return copied_graph

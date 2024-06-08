@@ -59,15 +59,6 @@ class FASGraph(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def edge_preserves_acyclicity(self, source: Node, target: Node) -> bool:
-        """
-        Returns True if adding the edge is guaranteed to keep the graph acyclic.
-        Otherwise, return False. In particular, if the graph is currently not acyclic,
-        return False.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
     def get_edge_weight(self, source: Node, target: Node) -> int:
         raise NotImplementedError
 

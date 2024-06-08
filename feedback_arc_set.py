@@ -151,7 +151,7 @@ def compute_fas(
     # reduce the size of the FAS with the smartAE heuristic
     if use_smartAE:
         builder.forward.smartAE_restored = smart_ae(forward_graph, forward_edges)
-        builder.forward.smartAE_restored = smart_ae(backward_graph, backward_edges)
+        builder.backward.smartAE_restored = smart_ae(backward_graph, backward_edges)
 
     return builder
 
@@ -228,10 +228,12 @@ def smart_ae(graph: FASGraph, fas: list[tuple[int, int]]) -> list[tuple[int, int
             edge = fas[i + added_count]
             processed_edges.append(edge)
 
-            if graph.edge_preserves_acyclicity(*edge):
-                graph.add_edge(*edge)
+            graph.add_edge(*edge)
+            if graph.is_acyclic():
                 added_edges.append(edge)
                 added_count += 1
+            else:
+                graph.remove_edge(*edge)
             i += 1
 
         for edge in processed_edges:

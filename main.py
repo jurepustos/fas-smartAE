@@ -33,8 +33,8 @@ if __name__ == "__main__":
         graph,
         use_smartAE=True,
         reduce=False,
-        random_ordering=True,
-        greedy_orderings=True,
+        random_ordering=False,
+        greedy_orderings=False,
     )
     print(f"V = {graph.get_num_nodes()}, E = {graph.get_num_edges()}")
     for method, fas in fas_instances.items():
