@@ -7,17 +7,39 @@ from fas_graph import Edge, Node
 
 
 class OrderingFASEdges:
-    def __init__(self):
+    def __init__(self, fas_edges: list[Edge], merged_edges: dict[Edge, list[Edge]]):
+        self.fas_edges = fas_edges
+        self.merged_edges = merged_edges
         self.removed_edges: list[Edge] = []
         self.smartAE_restored: SortedList[Edge] = SortedList()
 
+    def build_fas(self, node_labels: list[str]):
+        fas = [
+            (node_labels[source], node_labels[target])
+            for source, target in self.fas_edges
+        ]
+        for source, target in self.removed_edges:
+            # skip if smartAE restored the edge
+            if (source, target) not in self.smartAE_restored:
+                # if the current edge is merged from reductions, unmerge it
+                if (source, target) in self.merged_edges:
+                    uunmerged_source, unmerged_target = self.merged_edges[
+                        (source, target)
+                    ].pop()
+                    fas.append(
+                        ([node_labels[uunmerged_source], node_labels[unmerged_target]])
+                    )
+                else:
+                    fas.append(([node_labels[source], node_labels[target]]))
+        return fas
+
 
 class OrderingFASBuilder:
-    def __init__(self):
-        self.fas_edges: list[Edge] = []
-        self.merged_edges: dict[Edge, list[Edge]] = defaultdict[list]
-        self.forward = OrderingFASEdges()
-        self.backward = OrderingFASEdges()
+    def __init__(self, fas_edges: list[Edge], merged_edges: dict[Edge, list[Edge]]):
+        self.fas_edges = fas_edges
+        self.merged_edges = merged_edges
+        self.forward = OrderingFASEdges(self.fas_edges, self.merged_edges)
+        self.backward = OrderingFASEdges(self.fas_edges, self.merged_edges)
 
     def merge(self, other: Self):
         self.forward.removed_edges.extend(other.forward.removed_edges)
@@ -25,32 +47,14 @@ class OrderingFASBuilder:
         self.backward.removed_edges.extend(other.backward.removed_edges)
         self.backward.smartAE_restored.update(other.backward.smartAE_restored)
 
-    def build_forward_fas(self, node_labels: list[str]) -> list[tuple[str, str]]:
-        fas = [
-            (node_labels[source], node_labels[target])
-            for source, target in self.fas_edges
-        ]
-        for source, target in self.forward.removed_edges:
-            if (source, target) not in self.forward.smartAE_restored:
-                fas.append(([node_labels[source], node_labels[target]]))
-        return fas
-
-    def build_backward_fas(self, node_labels: list[str]) -> list[tuple[str, str]]:
-        fas = [
-            (node_labels[source], node_labels[target])
-            for source, target in self.fas_edges
-        ]
-        for source, target in self.backward.removed_edges:
-            if (source, target) not in self.forward.smartAE_restored:
-                fas.append(([node_labels[source], node_labels[target]]))
-        return fas
-
 
 class FASBuilder:
     def __init__(self):
         self.fas_edges: list[Edge] = []
         self.merged_edges = defaultdict(list)
-        self.orderings: dict[OrderingFASBuilder] = defaultdict(OrderingFASBuilder)
+        self.orderings: dict[OrderingFASBuilder] = defaultdict(
+            lambda: OrderingFASBuilder(self.fas_edges, self.merged_edges)
+        )
 
     def add_fas_edges(self, edges: list[Edge]):
         self.fas_edges.extend(edges)
@@ -61,11 +65,6 @@ class FASBuilder:
 
     def ordering(self, name: str) -> OrderingFASBuilder:
         return self.orderings[name]
-
-    def add_ordering(self, name: str, ordering: OrderingFASBuilder):
-        self.orderings[name] = ordering
-        ordering.fas_edges = self.fas_edges
-        ordering.merged_edges = self.merged_edges
 
     def merge(self, other: Self):
         self.fas_edges.extend(other.fas_edges)

@@ -31,87 +31,75 @@ def feedback_arc_set(
         component_fas_builder.add_fas_edges(reduction_fas_edges)
         component_fas_builder.add_merged_edges(reduction_merged_edges)
 
-        # TODO: run in 8 parallel threads (2 per ordering)
         if component.get_num_nodes() < 2:
             continue
 
         component_nodes = component.get_nodes()
         component_nodes.sort(key=component.get_out_degree)
-        component_fas_builder.add_ordering(
-            "out_asc",
-            compute_fas(
-                component,
-                component_nodes,
-                use_smartAE=use_smartAE,
-            ),
+        compute_fas(
+            component,
+            component_nodes,
+            component_fas_builder.ordering("out_asc"),
+            use_smartAE=use_smartAE,
         )
+
         component_nodes.reverse()
-        component_fas_builder.add_ordering(
-            "out_desc",
-            compute_fas(
-                component,
-                component_nodes,
-                use_smartAE=use_smartAE,
-            ),
+        compute_fas(
+            component,
+            component_nodes,
+            component_fas_builder.ordering("out_desc"),
+            use_smartAE=use_smartAE,
         )
+
         component_nodes.sort(key=component.get_in_degree)
-        component_fas_builder.add_ordering(
-            "in_asc",
-            compute_fas(
-                component,
-                component_nodes,
-                use_smartAE=use_smartAE,
-            ),
+        compute_fas(
+            component,
+            component_nodes,
+            component_fas_builder.ordering("in_asc"),
+            use_smartAE=use_smartAE,
         )
+
         component_nodes.reverse()
-        component_fas_builder.add_ordering(
-            "in_desc",
-            compute_fas(
-                component,
-                component_nodes,
-                use_smartAE=use_smartAE,
-            ),
+        compute_fas(
+            component,
+            component_nodes,
+            component_fas_builder.ordering("in_desc"),
+            use_smartAE=use_smartAE,
         )
 
         if random_ordering:
             random.shuffle(component_nodes)
-            component_fas_builder.add_ordering(
-                "random",
-                compute_fas(
-                    component,
-                    component_nodes,
-                    use_smartAE=use_smartAE,
-                ),
+            compute_fas(
+                component,
+                component_nodes,
+                component_fas_builder.ordering("random"),
+                use_smartAE=use_smartAE,
             )
 
         if greedy_orderings:
             scores1, scores2 = compute_scores(component, component_nodes)
-            component_fas_builder.add_ordering(
-                "greedy1",
-                compute_fas(
-                    component,
-                    scores1,
-                    use_smartAE=use_smartAE,
-                ),
+            compute_fas(
+                component,
+                component_nodes,
+                component_fas_builder.ordering("greedy1"),
+                use_smartAE=use_smartAE,
             )
-            component_fas_builder.add_ordering(
-                "greedy2",
-                compute_fas(
-                    component,
-                    scores2,
-                    use_smartAE=use_smartAE,
-                ),
+            compute_fas(
+                component,
+                component_nodes,
+                component_fas_builder.ordering("greedy2"),
+                use_smartAE=use_smartAE,
             )
 
         fas_builder.merge(component_fas_builder)
 
     instances = {
-        f"{name}_forward": ordering.build_forward_fas(graph.get_node_labels())
+        f"{name}_forward": ordering.forward.build_fas(graph.get_node_labels())
         for name, ordering in fas_builder.orderings.items()
     }
     instances.update(
         {
-            f"{name}_backward": ordering.build_backward_fas(graph.get_node_labels())
+            f"{name}_backward": ordering.backward.build_fas(graph.get_node_labels())
             for name, ordering in fas_builder.orderings.items()
         }
     )
@@ -148,14 +136,12 @@ def compute_scores(graph: FASGraph, nodes: list[int]) -> tuple[list[int], list[i
 def compute_fas(
     graph: FASGraph,
     ordering: list[int],
+    builder: OrderingFASBuilder,
     use_smartAE: bool = True,
 ) -> OrderingFASBuilder:
     """
     Computes a minimal FAS for the given graph and node ordering.
     """
-    builder = OrderingFASBuilder()
-
-    # TODO: run in 2 separate threads
     forward_edges, forward_graph = get_forward_edges(graph, ordering)
     backward_edges, backward_graph = get_backward_edges(graph, ordering)
 

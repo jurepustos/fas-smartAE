@@ -98,14 +98,21 @@ class NetworkitGraph(FASGraph):
                     and self.get_out_degree(v) == 1
                 ):
                     w = next(self.iter_out_neighbors(v))
+
+                    # uvw is not a cycle
                     if u != w:
+                        # uv was uxv in a previous step
                         if (u, v) in merged_edges:
                             merged_edges[(u, w)].extend(merged_edges[(u, v)])
                             # v only has u and w as neighbors
                             del merged_edges[(u, v)]
                         merged_edges[(u, w)].append((u, v))
+                        # merge weights
+                        uv_weight = self.graph.weight(u, v)
+                        vw_weight = self.graph.weight(v, w)
+                        uw_added_weight = min(uv_weight, vw_weight)
                         self.graph.removeNode(v)
-                        self.graph.increaseWeight(u, w, 1)
+                        self.graph.increaseWeight(u, w, uw_added_weight)
                     v = w
 
         return merged_edges
@@ -117,13 +124,13 @@ class NetworkitGraph(FASGraph):
         for pair in cy2:
             a = pair[0]
             b = pair[1]
-            if self.get_out_degree(b) == 1:
-                for _ in range(self.get_edge_weight(b, a)):
-                    FAS.append((b, a))
+            ab_weight = self.get_edge_weight(a, b)
+            ba_weight = self.get_edge_weight(b, a)
+            if self.get_out_degree(b) == 1 and ab_weight <= ba_weight:
+                FAS.extend([(a, b)] * ab_weight)
                 self.graph.removeNode(b)
-            elif self.get_in_degree(b) == 1:
-                for _ in range(self.get_edge_weight(a, b)):
-                    FAS.append((b, a))
+            elif self.get_in_degree(b) == 1 and ab_weight >= ba_weight:
+                FAS.extend([(b, a)] * ba_weight)
                 self.graph.removeNode(b)
 
         return FAS
@@ -222,8 +229,7 @@ class NetworkitGraph(FASGraph):
                 target = nodes[1]
                 if target not in labels:
                     labels[target] = graph.addNode()
-                graph.addEdge(labels[source], labels[target], checkMultiEdge=True)
-        graph.removeSelfLoops()
+                graph.increaseWeight(labels[source], labels[target], 1)
 
         inverse_labels = graph.numberOfNodes() * [None]
         for label, node in labels.items():
@@ -255,8 +261,7 @@ class NetworkitGraph(FASGraph):
                 for target in nodes[1:]:
                     if target not in labels:
                         labels[target] = graph.addNode()
-                    graph.addEdge(labels[source], labels[target], checkMultiEdge=True)
-        graph.removeSelfLoops()
+                    graph.increaseWeight(labels[source], labels[target], 1)
 
         inverse_labels = graph.numberOfNodes() * [None]
         for label, node in labels.items():
