@@ -14,8 +14,10 @@ class NetworkitGraph(FASGraph):
         self,
         networkit_graph: Graph,
         node_labels: list[str] | None = None,
+        self_loops: list[Node] | None = None,
     ):
         self.graph = networkit_graph
+        self.self_loops = self_loops if self_loops is not None else []
         self.node_labels = node_labels
         self.topological_sort: list[Node] | None = None
         self.inv_topological_sort: list[Node] | None = None
@@ -44,38 +46,8 @@ class NetworkitGraph(FASGraph):
     def iter_in_neighbors(self, node: Node) -> Iterator[Node]:
         return self.graph.iterInNeighbors(node)
 
-    def remove_neighbors_sink(self, node: Node):
-        removed = []
-        for neighbor in self.iter_in_neighbors(node):
-            if self.get_out_degree(neighbor) == 1:
-                removed.append(neighbor)
-                self.graph.removeNode(neighbor)
-
-        for i in removed:
-            self.remove_neighbors_sink(i)
-        return
-
-    def remove_sinks(self):
-        sinks = [
-            node for node in self.graph.iterNodes() if self.graph.degreeOut(node) == 0
-        ]
-        while sinks:
-            sink = sinks.pop()
-            for neighbor in self.iter_in_neighbors(sink):
-                if self.get_out_degree(neighbor) == 1:
-                    sinks.append(neighbor)
-            self.graph.removeNode(sink)
-
-    def remove_sources(self):
-        sources = [
-            node for node in self.graph.iterNodes() if self.graph.degreeIn(node) == 0
-        ]
-        while sources:
-            source = sources.pop()
-            for neighbor in self.iter_out_neighbors(source):
-                if self.get_in_degree(neighbor) == 1:
-                    sources.append(neighbor)
-            self.graph.removeNode(source)
+    def get_self_loop_nodes(self) -> list[Node]:
+        return self.self_loops
 
     def find_2cycles(self):
         twoCycles = []
@@ -204,7 +176,8 @@ class NetworkitGraph(FASGraph):
         The resulting graph does not have isolated vertices.
         """
         graph = Graph(weighted=True, directed=True)
-        labels = {}
+        labels: dict[str, Node] = {}
+        self_loops: list[Node] = []
 
         with open(filename, "r") as file:
             for line in file:
@@ -221,13 +194,15 @@ class NetworkitGraph(FASGraph):
                 target = nodes[1]
                 if target not in labels:
                     labels[target] = graph.addNode()
+                if target == source:
+                    self_loops.append(source)
                 graph.increaseWeight(labels[source], labels[target], 1)
 
-        inverse_labels = graph.numberOfNodes() * [None]
+        inverse_labels: list[str]  = graph.numberOfNodes() * [""]
         for label, node in labels.items():
             inverse_labels[node] = label
 
-        return NetworkitGraph(graph, node_labels=inverse_labels)
+        return NetworkitGraph(graph, node_labels=inverse_labels, self_loops=self_loops)
 
     @classmethod
     def load_from_adjacency_list(cls, filename: str):
@@ -235,7 +210,8 @@ class NetworkitGraph(FASGraph):
         Load the graph from an adjacency-list representation.
         """
         graph = Graph(directed=True, weighted=True)
-        labels = {}
+        labels: dict[str, Node] = {}
+        self_loops: list[Node] = []
 
         with open(filename, "r") as file:
             for line in file:
@@ -253,13 +229,15 @@ class NetworkitGraph(FASGraph):
                 for target in nodes[1:]:
                     if target not in labels:
                         labels[target] = graph.addNode()
+                    if target == source:
+                        self_loops.append(source)
                     graph.increaseWeight(labels[source], labels[target], 1)
 
-        inverse_labels = graph.numberOfNodes() * [None]
+        inverse_labels: list[str] = graph.numberOfNodes() * [""]
         for label, node in labels.items():
             inverse_labels[node] = label
 
-        return NetworkitGraph(graph, node_labels=inverse_labels)
+        return NetworkitGraph(graph, node_labels=inverse_labels, self_loops=self_loops)
 
     def __copy__(self):
         copied_graph = NetworkitGraph(

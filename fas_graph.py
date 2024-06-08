@@ -55,6 +55,10 @@ class FASGraph(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_self_loop_nodes(self) -> list[Node]:
+        raise NotImplementedError
+
+    @abstractmethod
     def is_acyclic(self):
         raise NotImplementedError
 
