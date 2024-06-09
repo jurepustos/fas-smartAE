@@ -18,7 +18,11 @@ class NetworkitGraph(FASGraph):
     ):
         self.graph = networkit_graph
         self.self_loops = self_loops if self_loops is not None else []
-        self.node_labels = node_labels
+        self.node_labels = (
+            node_labels
+            if node_labels is not None
+            else list(networkit_graph.iterNodes())
+        )
         self.topological_sort: list[Node] | None = None
         self.inv_topological_sort: list[Node] | None = None
 
@@ -49,20 +53,10 @@ class NetworkitGraph(FASGraph):
     def get_self_loops(self) -> list[Node]:
         return self.self_loops
 
-    def find_2cycles(self) -> list[Edge]:
-        twoCycles: list[Edge] = []
-        for u in self.get_nodes():
-            for v in self.iter_out_neighbors(u):
-                if u < v:
-                    for w in self.iter_out_neighbors(v):
-                        if u == w:
-                            twoCycles.append((u, v))
-        return twoCycles
-
     def remove_runs(self) -> dict[Edge, list[Edge]]:
         merged_edges: defaultdict[Edge, list[Edge]] = defaultdict(list)
         for u in self.get_nodes():
-            # we need to collect them into a list because the internal neighbors 
+            # we need to collect them into a list because the internal neighbors
             # list changes during the algorithm, leading to potential crashes
             u_neighbors = list(self.iter_out_neighbors(u))
             for v in u_neighbors:
@@ -94,18 +88,27 @@ class NetworkitGraph(FASGraph):
         self.graph.removeNode(v)
         self.graph.increaseWeight(u, w, uw_added_weight)
 
+    def iter_2cycles(self) -> Iterator[Edge]:
+        for u in self.get_nodes():
+            u_neighbors = list(self.iter_out_neighbors(u))
+            for v in u_neighbors:
+                if u < v:
+                    v_neighbors = list(self.iter_out_neighbors(v))
+                    for w in v_neighbors:
+                        if u == w:
+                            yield u, v
+                            yield v, u
+
     def remove_2cycles(self) -> list[Edge]:
         FAS: list[Edge] = []
-        cy2 = self.find_2cycles()
-
-        for a, b in cy2:
+        for a, b in self.iter_2cycles():
             ab_weight = self.get_edge_weight(a, b)
             ba_weight = self.get_edge_weight(b, a)
-            if self.get_out_degree(b) == 1 and ab_weight <= ba_weight:
-                FAS.extend([(a, b)] * ab_weight)
-                self.graph.removeNode(b)
-            elif self.get_in_degree(b) == 1 and ab_weight >= ba_weight:
+            if self.get_out_degree(b) == 1 and ab_weight >= ba_weight:
                 FAS.extend([(b, a)] * ba_weight)
+                self.graph.removeNode(b)
+            elif self.get_in_degree(b) == 1 and ab_weight <= ba_weight:
+                FAS.extend([(a, b)] * ab_weight)
                 self.graph.removeNode(b)
 
         return FAS
