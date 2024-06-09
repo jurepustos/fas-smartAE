@@ -46,7 +46,7 @@ class NetworkitGraph(FASGraph):
     def iter_in_neighbors(self, node: Node) -> Iterator[Node]:
         return self.graph.iterInNeighbors(node)
 
-    def get_self_loop_nodes(self) -> list[Node]:
+    def get_self_loops(self) -> list[Node]:
         return self.self_loops
 
     def find_2cycles(self) -> list[Edge]:

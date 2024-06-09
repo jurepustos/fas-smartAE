@@ -47,7 +47,7 @@ class FASGraph(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_self_loop_nodes(self) -> list[Node]:
+    def get_self_loops(self) -> list[Node]:
         raise NotImplementedError
 
     @abstractmethod

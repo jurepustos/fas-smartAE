@@ -20,7 +20,7 @@ def feedback_arc_set(
     """
     fas_builder = FASBuilder()
     reduction_merged_edges = {}
-    reduction_fas_edges = [(n, n) for n in graph.get_self_loop_nodes()]
+    reduction_fas_edges = [(n, n) for n in graph.get_self_loops()]
     if reduce:
         reduction_merged_edges = graph.remove_runs()
         reduction_fas_edges = graph.remove_2cycles()

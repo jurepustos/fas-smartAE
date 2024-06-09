@@ -1,40 +1,72 @@
+import argparse
 import sys
 
 from feedback_arc_set import feedback_arc_set
 from networkit_fas import NetworkitGraph
 
 if __name__ == "__main__":
-    # if len(sys.argv) < 2:
-    #     print("Usage: python script.py <folder_path>")
-    #     sys.exit(1)
-    #
-    # folder_path = sys.argv[1]
-    #
-    # if not os.path.isdir(folder_path):
-    #     print("Error: Invalid folder path.")
-    #     sys.exit(1)
-    #
-    # for filename in os.listdir(folder_path):
-    #     if filename.endswith(".al"):
-    #         file_path = os.path.join(folder_path, filename)
-    #         graph = NetworkitGraph.load_from_adjacency_list(file_path)
-    #         start_time = time.time()
-    #         arcset = feedback_arc_set(graph, use_smartAE=True, reduce=True)
-    #         end_time = time.time()
-    #         total_time = end_time - start_time
-    #
-    #         print(f"{filename:<40}{len(arcset):<15}{total_time:.4f}")
-    #
-    # # TODO: primer k crkne
-    if len(sys.argv) < 2:
-        sys.exit(f"Usage: python {sys.argv[0]} [filename]")
-    graph = NetworkitGraph.load_from_edge_list(sys.argv[1])
+    parser = argparse.ArgumentParser(
+        description="A runner of a heuristic algorithm for calculating a minimum Feedback Arc Set of a directed graph"
+    )
+    parser.add_argument("filename", help="path to the file containing the input graph")
+    parser.add_argument(
+        "-a",
+        "--adjacency-list",
+        action="store_const",
+        dest="format",
+        default="adjacency-list",
+        help="read the input file as an adjacency list",
+    )
+    parser.add_argument(
+        "-e",
+        "--edge-list",
+        action="store_const",
+        dest="format",
+        default="edge-list",
+        help="read the input file as an edge list (enabled by default)",
+    )
+    parser.add_argument(
+        "-r",
+        "--reduce",
+        action="store_true",
+        dest="reduce",
+        default=False,
+        help="apply graph reductions",
+    )
+    parser.add_argument(
+        "-s",
+        "--smartAE",
+        action="store_true",
+        dest="smartAE",
+        default=False,
+        help="apply the smartAE heuristic",
+    )
+    parser.add_argument(
+        "-ro",
+        "--random-ordering",
+        action="store_true",
+        dest="random_ordering",
+        default=False,
+        help="use a random ordering",
+    )
+    parser.add_argument(
+        "-go",
+        "--greedy-orderings",
+        action="store_true",
+        dest="greedy_orderings",
+        default=False,
+        help="use gredy orderings",
+    )
+
+    args = parser.parse_args()
+
+    graph = NetworkitGraph.load_from_edge_list(args.filename)
     fas_instances = feedback_arc_set(
         graph,
-        use_smartAE=True,
-        reduce=False,
-        random_ordering=False,
-        greedy_orderings=False,
+        use_smartAE=args.smartAE,
+        reduce=args.reduce,
+        random_ordering=args.random_ordering,
+        greedy_orderings=args.greedy_orderings,
     )
     print(f"V = {graph.get_num_nodes()}, E = {graph.get_num_edges()}")
     for method, fas in fas_instances.items():
