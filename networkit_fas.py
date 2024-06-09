@@ -123,9 +123,9 @@ class NetworkitGraph(FASGraph):
             subgraph = GraphTools.subgraphFromNodes(self.graph, component_nodes)
             mapping = GraphTools.getContinuousNodeIds(subgraph)
             compact_subgraph = GraphTools.getCompactedGraph(subgraph, mapping)
-            labels = {}
-            for orig_node, mapped_node in mapping.items():
-                labels[mapped_node] = self.node_labels[orig_node]
+            labels = {
+                mapped: self.node_labels[orig] for orig, mapped in mapping.items()
+            }
 
             yield NetworkitGraph(compact_subgraph, node_labels=labels)
 
@@ -188,11 +188,11 @@ class NetworkitGraph(FASGraph):
 
         with open(filename, "r") as file:
             for line in file:
-                nodes = [int(word) for word in line.strip().split()]
+                nodes = [word for word in line.strip().split()]
                 source = nodes[0]
 
                 # line is a comment
-                if source == "#":
+                if source[0] == "#":
                     continue
 
                 if source not in labels:
@@ -222,12 +222,10 @@ class NetworkitGraph(FASGraph):
 
         with open(filename, "r") as file:
             for line in file:
-                nodes = list(map(int, line.strip().split()))
+                nodes = list(line.strip().split())
                 source = nodes[0]
                 # line is a comment
-                if source == "#":
-                    continue
-                if source == "#":
+                if source[0] == "#":
                     continue
 
                 if source not in labels:

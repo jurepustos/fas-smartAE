@@ -1,6 +1,5 @@
 import argparse
 import sys
-
 from feedback_arc_set import feedback_arc_set
 from networkit_fas import NetworkitGraph
 
@@ -14,7 +13,7 @@ if __name__ == "__main__":
         "--adjacency-list",
         action="store_const",
         dest="format",
-        default="adjacency-list",
+        const="adjacency-list",
         help="read the input file as an adjacency list",
     )
     parser.add_argument(
@@ -22,6 +21,7 @@ if __name__ == "__main__":
         "--edge-list",
         action="store_const",
         dest="format",
+        const="edge-list",
         default="edge-list",
         help="read the input file as an edge list (enabled by default)",
     )
@@ -60,7 +60,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    graph = NetworkitGraph.load_from_edge_list(args.filename)
+    if args.format == "adjacency-list":
+        graph = NetworkitGraph.load_from_adjacency_list(args.filename)
+    else:
+        graph = NetworkitGraph.load_from_edge_list(args.filename)
     fas_instances = feedback_arc_set(
         graph,
         use_smartAE=args.smartAE,

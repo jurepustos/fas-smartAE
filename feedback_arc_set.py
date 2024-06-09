@@ -18,18 +18,17 @@ def feedback_arc_set(
     Searches for a minimal Feedback Arc Set of the input graph
     and returns an approximate answer as a list of edges.
     """
-    fas_builder = FASBuilder()
+    fas_builder = FASBuilder(graph.get_node_labels())
     reduction_merged_edges = {}
     reduction_fas_edges = [(n, n) for n in graph.get_self_loops()]
     if reduce:
-        reduction_merged_edges = graph.remove_runs()
-        reduction_fas_edges = graph.remove_2cycles()
+        reduction_merged_edges.update(graph.remove_runs())
+        reduction_fas_edges.extend(graph.remove_2cycles())
 
-    components = graph.iter_strongly_connected_components()
-    for component in components:
-        component_fas_builder = FASBuilder()
-        component_fas_builder.add_fas_edges(reduction_fas_edges)
-        component_fas_builder.add_merged_edges(reduction_merged_edges)
+    fas_builder.add_fas_edges(reduction_fas_edges)
+    fas_builder.add_merged_edges(reduction_merged_edges)
+    for component in graph.iter_strongly_connected_components():
+        component_fas_builder = FASBuilder(component.get_node_labels())
 
         if component.get_num_nodes() < 2:
             continue
@@ -94,12 +93,12 @@ def feedback_arc_set(
         fas_builder.merge(component_fas_builder)
 
     instances = {
-        f"{name}_forward": ordering.forward.build_fas(graph.get_node_labels())
+        f"{name}_forward": ordering.forward.build_fas()
         for name, ordering in fas_builder.orderings.items()
     }
     instances.update(
         {
-            f"{name}_backward": ordering.backward.build_fas(graph.get_node_labels())
+            f"{name}_backward": ordering.backward.build_fas()
             for name, ordering in fas_builder.orderings.items()
         }
     )
