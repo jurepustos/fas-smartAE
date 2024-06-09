@@ -49,8 +49,8 @@ class NetworkitGraph(FASGraph):
     def get_self_loop_nodes(self) -> list[Node]:
         return self.self_loops
 
-    def find_2cycles(self):
-        twoCycles = []
+    def find_2cycles(self) -> list[Edge]:
+        twoCycles: list[Edge] = []
         for u in self.get_nodes():
             for v in self.iter_out_neighbors(u):
                 if u < v:
@@ -60,41 +60,45 @@ class NetworkitGraph(FASGraph):
         return twoCycles
 
     def remove_runs(self) -> dict[Edge, list[Edge]]:
-        merged_edges = defaultdict(list)
+        merged_edges: defaultdict[Edge, list[Edge]] = defaultdict(list)
         for u in self.get_nodes():
-            for v in self.iter_out_neighbors(u):
+            # we need to collect them into a list because the internal neighbors 
+            # list changes during the algorithm, leading to potential crashes
+            u_neighbors = list(self.iter_out_neighbors(u))
+            for v in u_neighbors:
                 while (
                     u != v
                     and self.get_in_degree(v) == 1
                     and self.get_out_degree(v) == 1
                 ):
                     w = next(self.iter_out_neighbors(v))
-
-                    # uvw is not a cycle
                     if u != w:
-                        # uv was uxv in a previous step
-                        if (u, v) in merged_edges:
-                            merged_edges[(u, w)].extend(merged_edges[(u, v)])
-                            # v only has u and w as neighbors
-                            del merged_edges[(u, v)]
-                        merged_edges[(u, w)].append((u, v))
-                        # merge weights
-                        uv_weight = self.graph.weight(u, v)
-                        vw_weight = self.graph.weight(v, w)
-                        uw_added_weight = min(uv_weight, vw_weight)
-                        self.graph.removeNode(v)
-                        self.graph.increaseWeight(u, w, uw_added_weight)
+                        self.remove_run(merged_edges, u, v, w)
                     v = w
 
         return merged_edges
 
+    def remove_run(
+        self, merged_edges: defaultdict[Edge, list[Edge]], u: Node, v: Node, w: Node
+    ):
+        # uv was uxv in a previous step
+        if (u, v) in merged_edges:
+            merged_edges[(u, w)].extend(merged_edges[(u, v)])
+            # since v only has u and w as neighbors
+            del merged_edges[(u, v)]
+        merged_edges[(u, w)].append((u, v))
+        # merge weights
+        uv_weight = self.graph.weight(u, v)
+        vw_weight = self.graph.weight(v, w)
+        uw_added_weight = min(uv_weight, vw_weight)
+        self.graph.removeNode(v)
+        self.graph.increaseWeight(u, w, uw_added_weight)
+
     def remove_2cycles(self) -> list[Edge]:
-        FAS = []
+        FAS: list[Edge] = []
         cy2 = self.find_2cycles()
 
-        for pair in cy2:
-            a = pair[0]
-            b = pair[1]
+        for a, b in cy2:
             ab_weight = self.get_edge_weight(a, b)
             ba_weight = self.get_edge_weight(b, a)
             if self.get_out_degree(b) == 1 and ab_weight <= ba_weight:
@@ -198,7 +202,7 @@ class NetworkitGraph(FASGraph):
                     self_loops.append(source)
                 graph.increaseWeight(labels[source], labels[target], 1)
 
-        inverse_labels: list[str]  = graph.numberOfNodes() * [""]
+        inverse_labels: list[str] = graph.numberOfNodes() * [""]
         for label, node in labels.items():
             inverse_labels[node] = label
 

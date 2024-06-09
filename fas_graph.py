@@ -39,14 +39,6 @@ class FASGraph(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def remove_sinks(self):
-        raise NotImplementedError
-
-    @abstractmethod
-    def remove_sources(self):
-        raise NotImplementedError
-
-    @abstractmethod
     def remove_runs(self) -> dict[Edge, list[Edge]]:
         raise NotImplementedError
 
