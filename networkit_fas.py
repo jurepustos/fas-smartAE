@@ -113,7 +113,9 @@ class NetworkitGraph(FASGraph):
                 FAS.extend([(a, b)] * ab_weight)
                 self.graph.removeNode(b)
 
-        return FAS
+        if self.is_acyclic():
+            return True, FAS
+        return False, FAS
 
     def iter_strongly_connected_components(self) -> Iterator[Self]:
         """

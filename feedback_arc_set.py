@@ -23,7 +23,17 @@ def feedback_arc_set(
     reduction_fas_edges = [(n, n) for n in graph.get_self_loops()]
     if reduce:
         reduction_merged_edges.update(graph.remove_runs())
-        reduction_fas_edges.extend(graph.remove_2cycles())
+        acyclicFlag, fas = graph.remove_2cycles()
+        reduction_fas_edges.extend(fas)
+        if acyclicFlag:
+            fas_builder.add_fas_edges(reduction_fas_edges)
+            fas_builder.add_merged_edges(reduction_merged_edges)
+            fas_builder.ordering("just2cycle"),
+            instances = {
+                f"{name}": ordering.forward.build_fas()
+                for name, ordering in fas_builder.orderings.items()
+            }
+            return instances
 
     fas_builder.add_fas_edges(reduction_fas_edges)
     fas_builder.add_merged_edges(reduction_merged_edges)
@@ -80,13 +90,13 @@ def feedback_arc_set(
             scores1, scores2 = compute_scores(component, component_nodes)
             compute_fas(
                 component,
-                component_nodes,
+                scores1,
                 component_fas_builder.ordering("greedy1"),
                 use_smartAE=use_smartAE,
             )
             compute_fas(
                 component,
-                component_nodes,
+                scores2,
                 component_fas_builder.ordering("greedy2"),
                 use_smartAE=use_smartAE,
             )
@@ -126,9 +136,9 @@ def compute_scores(graph: FASGraph, nodes: list[int]) -> tuple[list[int], list[i
             inv_ratio = float("inf")
         score2[node] = max(ratio, inv_ratio)
 
-    scores1 = sorted(score1.items(), key=lambda x: x[1], reverse=True)
+    scores1 = sorted(score1.items(), key=lambda x: x[1], reverse=False)
     scores1 = [t[0] for t in scores1]
-    scores2 = sorted(score2.items(), key=lambda item: item[1], reverse=True)
+    scores2 = sorted(score2.items(), key=lambda item: item[1], reverse=False)
     scores2 = [t[0] for t in scores2]
     return scores1, scores2
 
