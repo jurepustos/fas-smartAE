@@ -1,5 +1,7 @@
 import argparse
 import sys
+import time
+
 from feedback_arc_set import feedback_arc_set
 from networkit_fas import NetworkitGraph
 
@@ -64,6 +66,8 @@ if __name__ == "__main__":
         graph = NetworkitGraph.load_from_adjacency_list(args.filename)
     else:
         graph = NetworkitGraph.load_from_edge_list(args.filename)
+
+    start_time = time.time()
     fas_instances = feedback_arc_set(
         graph,
         use_smartAE=args.smartAE,
@@ -71,8 +75,9 @@ if __name__ == "__main__":
         random_ordering=args.random_ordering,
         greedy_orderings=args.greedy_orderings,
     )
+    end_time = time.time()
+
     print(f"V = {graph.get_num_nodes()}, E = {graph.get_num_edges()}")
     for method, fas in fas_instances.items():
         print(method, len(fas), fas)
-
-    test = NetworkitGraph.is_acyclic(graph)
+    print(f"Execution time: {end_time - start_time} ms")

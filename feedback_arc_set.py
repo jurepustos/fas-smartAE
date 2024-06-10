@@ -144,13 +144,13 @@ def compute_fas(
     forward_edges, forward_graph = get_forward_edges(graph, ordering)
     backward_edges, backward_graph = get_backward_edges(graph, ordering)
 
-    builder.forward.removed_edges = copy(forward_edges)
-    builder.backward.removed_edges = copy(backward_edges)
+    builder.forward.add_removed_edges(forward_edges)
+    builder.backward.add_removed_edges(backward_edges)
 
     # reduce the size of the FAS with the smartAE heuristic
     if use_smartAE:
-        builder.forward.smartAE_restored = smart_ae(forward_graph, forward_edges)
-        builder.backward.smartAE_restored = smart_ae(backward_graph, backward_edges)
+        builder.forward.add_smartAE_restored(smart_ae(forward_graph, forward_edges))
+        builder.backward.add_smartAE_restored(smart_ae(backward_graph, backward_edges))
 
     return builder
 

@@ -20,23 +20,21 @@ class OrderingFASEdges:
         self.removed_edges: list[tuple[str, str]] = []
         self.smartAE_restored: SortedList[tuple[str, str]] = SortedList()
 
-    def add_removed_edge(self, source: Node, target: Node):
-        self.removed_edges.append(self.node_labels[source], self.node_labels[target])
-
     def add_removed_edges(self, edges: list[Edge]):
-        for u, v in edges:
-            self.add_removed_edge(u, v)
+        for source, target in edges:
+            self.removed_edges.append(
+                (self.node_labels[source], self.node_labels[target])
+            )
 
-    def add_smartAE_restored(self, source: Node, target: Node):
-        self.smartAE_restored.add(self.node_labels[source], self.node_labels[target])
+    def add_smartAE_restored(self, edges: list[Edge]):
+        for source, target in edges:
+            self.smartAE_restored.add(
+                (self.node_labels[source], self.node_labels[target])
+            )
 
     def merge(self, other: Self):
-        self.removed_edges.extend(
-            (other.node_labels[u], other.node_labels[v]) for u, v in other.removed_edges
-        )
-        self.smartAE_restored.update(
-            other.node_labels[u] for u in other.smartAE_restored
-        )
+        self.removed_edges.extend(other.removed_edges)
+        self.smartAE_restored.update(other.smartAE_restored)
 
     def build_fas(self):
         fas = copy(self.fas_edges)
