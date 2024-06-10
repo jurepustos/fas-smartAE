@@ -63,11 +63,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    print(f"Reading input file {args.filename}", file=sys.stderr)
     if args.format == "adjacency-list":
         graph, node_id_mapping = NetworkitGraph.load_from_adjacency_list(args.filename)
     else:
         graph, node_id_mapping = NetworkitGraph.load_from_edge_list(args.filename)
-    verification_graph = copy(graph)
 
     print("Starting calculation of minFAS")
     start_time = time.time()
@@ -82,13 +82,6 @@ if __name__ == "__main__":
 
     print(f"V = {graph.get_num_nodes()}, E = {graph.get_num_edges()}")
     for method, fas in fas_instances.items():
-        verify_graph = copy(verification_graph)
-        for source, target in fas:
-            verify_graph.remove_edge(node_id_mapping[source], node_id_mapping[target])
-        
-        if not verify_graph.is_acyclic():
-            print(method, len(fas), "INVALID")
-        else:
-            # print(method, len(fas), fas)
-            print(method, len(fas))
+        # print(method, len(fas), fas)
+        print(method, len(fas))
     print(f"Execution time: {end_time - start_time} s")

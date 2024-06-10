@@ -23,6 +23,8 @@ class NetworkitGraph(FASGraph):
             if node_labels is not None
             else list(networkit_graph.iterNodes())
         )
+        self.known_acyclic = False
+        self.added_backward_edges: list[Edge] = []
         self.topological_sort: list[Node] | None = None
         self.inv_topological_sort: list[Node] | None = None
 
@@ -130,21 +132,24 @@ class NetworkitGraph(FASGraph):
             yield NetworkitGraph(compact_subgraph, node_labels=labels)
 
     def is_acyclic(self) -> bool:
-        if self.topological_sort is not None:
+        if self.known_acyclic:
             return True
 
         try:
             self.topological_sort = GraphTools.topologicalSort(self.graph)
         except RuntimeError:
+            self.known_acyclic = False
             return False
 
         self.inv_topological_sort = len(self.topological_sort) * [0]
         for i, node in enumerate(self.topological_sort):
             self.inv_topological_sort[node] = i
+        self.added_backward_edges = []
+        self.known_acyclic = True
         return True
 
     def edge_preserves_topology(self, source: Node, target: Node) -> bool:
-        if self.inv_topological_sort is None:
+        if not self.known_acyclic:
             # we only know the answer if we know the graph is acyclic
             return False
 
@@ -161,12 +166,20 @@ class NetworkitGraph(FASGraph):
         # check if the edge violates the topological ordering,
         # making the graph cyclic.
         if not self.edge_preserves_topology(source, target):
-            self.topological_sort = None
-            self.inv_topological_sort = None
+            self.known_acyclic = False
+            self.added_backward_edges.append((source, target))
 
         self.graph.increaseWeight(source, target, 1)
 
     def remove_edge(self, source: Node, target: Node):
+        if (
+            len(self.added_backward_edges) > 0
+            and (source, target) == self.added_backward_edges[-1]
+        ):
+            self.added_backward_edges.pop()
+            if len(self.added_backward_edges) == 0:
+                self.known_acyclic = True
+
         if self.graph.weight(source, target) > 1:
             self.graph.increaseWeight(source, target, -1)
         else:

@@ -31,6 +31,7 @@ def feedback_arc_set(
         component_fas_builder = FASBuilder(component.get_node_labels())
 
         if component.get_num_nodes() < 2:
+            fas_builder.merge(component_fas_builder)
             continue
 
         component_nodes = component.get_nodes()
