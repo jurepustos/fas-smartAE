@@ -17,6 +17,7 @@ if __name__ == "__main__":
         action="store_const",
         dest="format",
         const="adjacency-list",
+        default="adjacency-list",
         help="read the input file as an adjacency list",
     )
     parser.add_argument(
@@ -25,7 +26,6 @@ if __name__ == "__main__":
         action="store_const",
         dest="format",
         const="edge-list",
-        default="edge-list",
         help="read the input file as an edge list (enabled by default)",
     )
     parser.add_argument(

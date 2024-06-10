@@ -23,9 +23,9 @@ def feedback_arc_set(
     reduction_fas_edges = [(n, n) for n in graph.get_self_loops()]
     if reduce:
         reduction_merged_edges.update(graph.remove_runs())
-        acyclicFlag, fas = graph.remove_2cycles()
+        acyclic_flag, fas = graph.remove_2cycles()
         reduction_fas_edges.extend(fas)
-        if acyclicFlag:
+        if acyclic_flag:
             fas_builder.add_fas_edges(reduction_fas_edges)
             fas_builder.add_merged_edges(reduction_merged_edges)
             fas_builder.ordering("just2cycle"),
