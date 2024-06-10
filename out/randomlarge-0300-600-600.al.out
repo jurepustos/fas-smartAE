@@ -1,0 +1,16 @@
+V = 600, E = 600
+out_asc_forward 1 [('85', '472')]
+out_desc_forward 1 [('516', '227')]
+in_asc_forward 1 [('516', '227')]
+in_desc_forward 1 [('85', '472')]
+random_forward 1 [('472', '516')]
+greedy1_forward 1 [('472', '516')]
+greedy2_forward 1 [('472', '516')]
+out_asc_backward 1 [('227', '85')]
+out_desc_backward 1 [('472', '516')]
+in_asc_backward 1 [('472', '516')]
+in_desc_backward 1 [('227', '85')]
+random_backward 1 [('85', '472')]
+greedy1_backward 1 [('85', '472')]
+greedy2_backward 1 [('85', '472')]
+Execution time: 0.013425827026367188 ms

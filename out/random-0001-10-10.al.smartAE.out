@@ -1,0 +1,16 @@
+V = 10, E = 10
+out_asc_forward 1 [('2', '8')]
+out_desc_forward 1 [('8', '2')]
+in_asc_forward 1 [('8', '2')]
+in_desc_forward 1 [('2', '8')]
+random_forward 1 [('8', '2')]
+greedy1_forward 1 [('8', '2')]
+greedy2_forward 1 [('8', '2')]
+out_asc_backward 1 [('8', '2')]
+out_desc_backward 1 [('2', '8')]
+in_asc_backward 1 [('2', '8')]
+in_desc_backward 1 [('8', '2')]
+random_backward 1 [('2', '8')]
+greedy1_backward 1 [('2', '8')]
+greedy2_backward 1 [('2', '8')]
+Execution time: 0.0014700889587402344 ms

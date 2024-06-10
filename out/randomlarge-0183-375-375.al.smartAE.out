@@ -1,0 +1,16 @@
+V = 375, E = 375
+out_asc_forward 1 [('314', '331')]
+out_desc_forward 1 [('203', '37')]
+in_asc_forward 1 [('203', '37')]
+in_desc_forward 1 [('314', '331')]
+random_forward 1 [('203', '37')]
+greedy1_forward 1 [('203', '37')]
+greedy2_forward 1 [('203', '37')]
+out_asc_backward 1 [('332', '314')]
+out_desc_backward 1 [('208', '203')]
+in_asc_backward 1 [('208', '203')]
+in_desc_backward 1 [('332', '314')]
+random_backward 1 [('208', '203')]
+greedy1_backward 1 [('208', '203')]
+greedy2_backward 1 [('208', '203')]
+Execution time: 0.007363319396972656 ms

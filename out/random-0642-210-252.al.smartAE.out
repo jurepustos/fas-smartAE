@@ -1,0 +1,16 @@
+V = 210, E = 252
+out_asc_forward 1 [('18', '150')]
+out_desc_forward 1 [('181', '18')]
+in_asc_forward 1 [('181', '18')]
+in_desc_forward 1 [('18', '150')]
+random_forward 1 [('181', '18')]
+greedy1_forward 1 [('181', '18')]
+greedy2_forward 1 [('181', '18')]
+out_asc_backward 1 [('181', '18')]
+out_desc_backward 1 [('150', '181')]
+in_asc_backward 1 [('150', '181')]
+in_desc_backward 1 [('181', '18')]
+random_backward 1 [('150', '181')]
+greedy1_backward 1 [('150', '181')]
+greedy2_backward 1 [('150', '181')]
+Execution time: 0.0033807754516601562 ms

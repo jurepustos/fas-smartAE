@@ -1,0 +1,16 @@
+V = 23, E = 23
+out_asc_forward 1 [('4', '14')]
+out_desc_forward 1 [('25', '4')]
+in_asc_forward 1 [('25', '4')]
+in_desc_forward 1 [('4', '14')]
+random_forward 1 [('25', '4')]
+greedy1_forward 1 [('25', '4')]
+greedy2_forward 1 [('25', '4')]
+out_asc_backward 1 [('25', '4')]
+out_desc_backward 1 [('14', '25')]
+in_asc_backward 1 [('14', '25')]
+in_desc_backward 1 [('25', '4')]
+random_backward 1 [('14', '25')]
+greedy1_backward 1 [('14', '25')]
+greedy2_backward 1 [('14', '25')]
+Execution time: 0.0011985301971435547 ms

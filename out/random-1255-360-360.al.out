@@ -1,0 +1,16 @@
+V = 360, E = 360
+out_asc_forward 1 [('25', '136')]
+out_desc_forward 1 [('251', '25')]
+in_asc_forward 1 [('251', '25')]
+in_desc_forward 1 [('25', '136')]
+random_forward 1 [('136', '287')]
+greedy1_forward 1 [('136', '287')]
+greedy2_forward 1 [('136', '287')]
+out_asc_backward 1 [('251', '25')]
+out_desc_backward 1 [('287', '251')]
+in_asc_backward 1 [('287', '251')]
+in_desc_backward 1 [('251', '25')]
+random_backward 1 [('25', '136')]
+greedy1_backward 1 [('25', '136')]
+greedy2_backward 1 [('25', '136')]
+Execution time: 0.008175134658813477 ms

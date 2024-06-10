@@ -1,0 +1,16 @@
+V = 33, E = 31
+out_asc_forward 2 [('9', '16'), ('38', '15')]
+out_desc_forward 2 [('9', '16'), ('24', '13')]
+in_asc_forward 2 [('9', '16'), ('24', '13')]
+in_desc_forward 2 [('9', '16'), ('38', '15')]
+random_forward 2 [('9', '16'), ('24', '13')]
+greedy1_forward 2 [('9', '16'), ('24', '13')]
+greedy2_forward 2 [('9', '16'), ('24', '13')]
+out_asc_backward 2 [('9', '16'), ('13', '38')]
+out_desc_backward 2 [('9', '16'), ('15', '24')]
+in_asc_backward 2 [('9', '16'), ('15', '24')]
+in_desc_backward 2 [('9', '16'), ('13', '38')]
+random_backward 2 [('9', '16'), ('15', '24')]
+greedy1_backward 2 [('9', '16'), ('15', '24')]
+greedy2_backward 2 [('9', '16'), ('15', '24')]
+Execution time: 0.0013763904571533203 ms

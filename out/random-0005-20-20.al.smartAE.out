@@ -1,0 +1,16 @@
+V = 20, E = 20
+out_asc_forward 1 [('16', '7')]
+out_desc_forward 1 [('7', '16')]
+in_asc_forward 1 [('7', '16')]
+in_desc_forward 1 [('16', '7')]
+random_forward 1 [('7', '16')]
+greedy1_forward 1 [('7', '16')]
+greedy2_forward 1 [('7', '16')]
+out_asc_backward 1 [('7', '16')]
+out_desc_backward 1 [('16', '7')]
+in_asc_backward 1 [('16', '7')]
+in_desc_backward 1 [('7', '16')]
+random_backward 1 [('16', '7')]
+greedy1_backward 1 [('16', '7')]
+greedy2_backward 1 [('16', '7')]
+Execution time: 0.001573324203491211 ms
