@@ -177,7 +177,7 @@ class NetworkitGraph(FASGraph):
             self.remove_edge(source, target)
 
     @classmethod
-    def load_from_edge_list(cls, filename: str):
+    def load_from_edge_list(cls, filename: str) -> tuple[Self, dict[str, Node]]:
         """
         Load the graph from an edge-list representation.
         The resulting graph does not have isolated vertices.
@@ -209,10 +209,12 @@ class NetworkitGraph(FASGraph):
         for label, node in labels.items():
             inverse_labels[node] = label
 
-        return NetworkitGraph(graph, node_labels=inverse_labels, self_loops=self_loops)
+        return NetworkitGraph(
+            graph, node_labels=inverse_labels, self_loops=self_loops
+        ), labels
 
     @classmethod
-    def load_from_adjacency_list(cls, filename: str):
+    def load_from_adjacency_list(cls, filename: str) -> tuple[Self, dict[str, Node]]:
         """
         Load the graph from an adjacency-list representation.
         """
@@ -242,7 +244,9 @@ class NetworkitGraph(FASGraph):
         for label, node in labels.items():
             inverse_labels[node] = label
 
-        return NetworkitGraph(graph, node_labels=inverse_labels, self_loops=self_loops)
+        return NetworkitGraph(
+            graph, node_labels=inverse_labels, self_loops=self_loops
+        ), labels
 
     def __copy__(self):
         copied_graph = NetworkitGraph(

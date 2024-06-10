@@ -1,6 +1,7 @@
 import argparse
 import sys
 import time
+from copy import copy
 
 from feedback_arc_set import feedback_arc_set
 from networkit_fas import NetworkitGraph
@@ -63,10 +64,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.format == "adjacency-list":
-        graph = NetworkitGraph.load_from_adjacency_list(args.filename)
+        graph, node_id_mapping = NetworkitGraph.load_from_adjacency_list(args.filename)
     else:
-        graph = NetworkitGraph.load_from_edge_list(args.filename)
+        graph, node_id_mapping = NetworkitGraph.load_from_edge_list(args.filename)
+    verification_graph = copy(graph)
 
+    print("Starting calculation of minFAS")
     start_time = time.time()
     fas_instances = feedback_arc_set(
         graph,
@@ -79,5 +82,13 @@ if __name__ == "__main__":
 
     print(f"V = {graph.get_num_nodes()}, E = {graph.get_num_edges()}")
     for method, fas in fas_instances.items():
-        print(method, len(fas), fas)
+        verify_graph = copy(verification_graph)
+        for source, target in fas:
+            verify_graph.remove_edge(node_id_mapping[source], node_id_mapping[target])
+        
+        if not verify_graph.is_acyclic():
+            print(method, len(fas), "INVALID")
+        else:
+            # print(method, len(fas), fas)
+            print(method, len(fas))
     print(f"Execution time: {end_time - start_time} ms")
