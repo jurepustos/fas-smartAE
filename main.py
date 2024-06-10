@@ -91,4 +91,4 @@ if __name__ == "__main__":
         else:
             # print(method, len(fas), fas)
             print(method, len(fas))
-    print(f"Execution time: {end_time - start_time} ms")
+    print(f"Execution time: {end_time - start_time} s")
