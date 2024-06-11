@@ -143,11 +143,12 @@ class NetworkitGraph(FASGraph):
             self.known_acyclic = False
             return False
 
-        self.inv_topological_sort = len(self.topological_sort) * [0]
-        for i, node in enumerate(self.topological_sort):
-            self.inv_topological_sort[node] = i
-        self.added_backward_edges = []
-        self.known_acyclic = True
+        if self.inv_topological_sort:
+            self.inv_topological_sort = len(self.topological_sort) * [0]
+            for i, node in enumerate(self.topological_sort):
+                self.inv_topological_sort[node] = i
+            self.added_backward_edges = []
+            self.known_acyclic = True
         return True
 
     def edge_preserves_topology(self, source: Node, target: Node) -> bool:
