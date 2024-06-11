@@ -113,9 +113,7 @@ class NetworkitGraph(FASGraph):
                 FAS.extend([(a, b)] * ab_weight)
                 self.graph.removeNode(b)
 
-        if self.is_acyclic():
-            return True, FAS
-        return False, FAS
+        return FAS
 
     def iter_strongly_connected_components(self) -> Iterator[Self]:
         """
@@ -143,12 +141,11 @@ class NetworkitGraph(FASGraph):
             self.known_acyclic = False
             return False
 
-        if self.inv_topological_sort:
-            self.inv_topological_sort = len(self.topological_sort) * [0]
-            for i, node in enumerate(self.topological_sort):
-                self.inv_topological_sort[node] = i
-            self.added_backward_edges = []
-            self.known_acyclic = True
+        self.inv_topological_sort = len(self.topological_sort) * [0]
+        for i, node in enumerate(self.topological_sort):
+            self.inv_topological_sort[node] = i
+        self.added_backward_edges = []
+        self.known_acyclic = True
         return True
 
     def edge_preserves_topology(self, source: Node, target: Node) -> bool:

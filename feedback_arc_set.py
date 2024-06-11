@@ -23,17 +23,7 @@ def feedback_arc_set(
     reduction_fas_edges = [(n, n) for n in graph.get_self_loops()]
     if reduce:
         reduction_merged_edges.update(graph.remove_runs())
-        acyclic_flag, fas = graph.remove_2cycles()
-        reduction_fas_edges.extend(fas)
-        if acyclic_flag:
-            fas_builder.add_fas_edges(reduction_fas_edges)
-            fas_builder.add_merged_edges(reduction_merged_edges)
-            fas_builder.ordering("just2cycle"),
-            instances = {
-                f"{name}": ordering.forward.build_fas()
-                for name, ordering in fas_builder.orderings.items()
-            }
-            return instances
+        reduction_fas_edges.extend(graph.remove_2cycles())
 
     fas_builder.add_fas_edges(reduction_fas_edges)
     fas_builder.add_merged_edges(reduction_merged_edges)
@@ -103,16 +93,21 @@ def feedback_arc_set(
 
         fas_builder.merge(component_fas_builder)
 
-    instances = {
-        f"{name}_forward": ordering.forward.build_fas()
-        for name, ordering in fas_builder.orderings.items()
-    }
-    instances.update(
-        {
-            f"{name}_backward": ordering.backward.build_fas()
+    if len(fas_builder.orderings) > 0:
+        instances = {
+            f"{name}_forward": ordering.forward.build_fas()
             for name, ordering in fas_builder.orderings.items()
         }
-    )
+        instances.update(
+            {
+                f"{name}_backward": ordering.backward.build_fas()
+                for name, ordering in fas_builder.orderings.items()
+            }
+        )
+    else:
+        # all components have single edges
+        instances = {"edges": fas_builder.fas_edges}
+        
     return instances
 
 

@@ -79,11 +79,7 @@ class FASBuilder:
         self.fas_edges: list[tuple[str, str]] = []
         self.merged_edges: defaultdict[Edge, list[tuple[str, str]]] = defaultdict(list)
         self.node_labels = node_labels
-        self.orderings: dict[str, OrderingFASBuilder] = defaultdict(
-            lambda: OrderingFASBuilder(
-                self.fas_edges, self.merged_edges, self.node_labels
-            )
-        )
+        self.orderings: dict[str, OrderingFASBuilder] = dict()
 
     def add_fas_edges(self, edges: list[Edge]):
         self.fas_edges.extend(
@@ -97,6 +93,11 @@ class FASBuilder:
             )
 
     def ordering(self, name: str) -> OrderingFASBuilder:
+        if name not in self.orderings:
+            self.orderings[name] = OrderingFASBuilder(
+                self.fas_edges, self.merged_edges, self.node_labels
+            )
+
         return self.orderings[name]
 
     def merge(self, other: Self):
