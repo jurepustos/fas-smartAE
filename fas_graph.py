@@ -81,5 +81,10 @@ class FASGraph(ABC):
 
     @classmethod
     @abstractmethod
+    def load_from_dot(cls, filename: str) -> tuple[Self, dict[str, Node]]:
+        raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
     def load_from_adjacency_list(cls, filename: str) -> tuple[Self, dict[str, Node]]:
         raise NotImplementedError

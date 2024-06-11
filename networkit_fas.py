@@ -1,6 +1,7 @@
 from collections import defaultdict
 from copy import copy
 from typing import Iterator, Self
+import re
 
 from networkit.components import StronglyConnectedComponents
 from networkit.graph import Graph
@@ -221,6 +222,48 @@ class NetworkitGraph(FASGraph):
         inverse_labels: list[str] = graph.numberOfNodes() * [""]
         for label, node in labels.items():
             inverse_labels[node] = label
+
+        return NetworkitGraph(
+            graph, node_labels=inverse_labels, self_loops=self_loops
+        ), labels
+
+    @classmethod
+    def load_from_dot(cls, filename: str):
+        graph = Graph(directed=True, weighted=True)
+        labels: dict[str, Node] = {}
+        self_loops: list[Node] = []
+
+        with open(filename, "r") as file:
+            for line in file:
+                line = line.strip()
+                # Skip empty lines and non-edge definitions
+                if not line or line.startswith("digraph") or line.startswith("label") or line.startswith(
+                        "{") or line.startswith("}"):
+                    continue
+
+                # Match node definition lines
+                node_match = re.match(r'\s*(\d+)\s*\[label="(\d+)"\];', line)
+                if node_match:
+                    node_id, node_label = map(int, node_match.groups())
+                    if node_id not in labels:
+                        labels[node_id] = graph.addNode()
+                    continue
+
+                # Match edge definition lines
+                edge_match = re.match(r'\s*(\d+)\s*->\s*(\d+)\s*\[label="\(\w=(\d+),\w=(\d+)\)"\];', line)
+                if edge_match:
+                    source, target, weight, _ = map(int, edge_match.groups())
+                    if source not in labels:
+                        labels[source] = graph.addNode()
+                    if target not in labels:
+                        labels[target] = graph.addNode()
+                    if source == target:
+                        self_loops.append(labels[source])
+                    graph.increaseWeight(labels[source], labels[target], weight)
+
+        inverse_labels = ["" for _ in range(graph.numberOfNodes())]
+        for label, node in labels.items():
+            inverse_labels[node] = str(label)
 
         return NetworkitGraph(
             graph, node_labels=inverse_labels, self_loops=self_loops
