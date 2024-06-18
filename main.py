@@ -11,7 +11,8 @@ if __name__ == "__main__":
         description="A runner of a heuristic algorithm for calculating a minimum Feedback Arc Set of a directed graph"
     )
     parser.add_argument("filename", help="path to the file containing the input graph")
-    parser.add_argument(
+    input_group = parser.add_mutually_exclusive_group()
+    input_group.add_argument(
         "-a",
         "--adjacency-list",
         action="store_const",
@@ -20,7 +21,7 @@ if __name__ == "__main__":
         default="adjacency-list",
         help="read the input file as an adjacency list",
     )
-    parser.add_argument(
+    input_group.add_argument(
         "-e",
         "--edge-list",
         action="store_const",
