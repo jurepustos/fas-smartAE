@@ -12,23 +12,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "filename", help="path to the file containing the input graph"
     )
-    input_group = parser.add_mutually_exclusive_group()
-    input_group.add_argument(
-        "-a",
-        "--adjacency-list",
-        action="store_const",
-        dest="format",
-        const="adjacency-list",
+    parser.add_argument(
+        "-f",
+        "--format",
+        nargs=1,
+        action="store",
+        choices=["adjacency-list", "edge-list"],
         default="adjacency-list",
-        help="read the input file as an adjacency list",
-    )
-    input_group.add_argument(
-        "-e",
-        "--edge-list",
-        action="store_const",
-        dest="format",
-        const="edge-list",
-        help="read the input file as an edge list (enabled by default)",
+        help="select the input file format (default adjacency-list)",
     )
     parser.add_argument(
         "-r",
@@ -60,7 +51,7 @@ if __name__ == "__main__":
         action="store_true",
         dest="greedy_orderings",
         default=False,
-        help="use gredy orderings",
+        help="use greedy orderings",
     )
 
     args = parser.parse_args()

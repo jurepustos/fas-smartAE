@@ -15,7 +15,11 @@ class FASGraph(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_num_nodes(self) -> Node:
+    def get_num_nodes(self) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_num_edges(self) -> int:
         raise NotImplementedError
 
     @abstractmethod

@@ -1,77 +1,26 @@
 from collections import defaultdict
 from copy import copy
-from typing import Self
+from typing import Iterable, Self
 
 from sortedcontainers import SortedList
 
 from fas_graph import Edge, Node
 
 
-class OrderingFASEdges:
-    def __init__(
-        self,
-        fas_edges: list[tuple[str, str]],
-        merged_edges: dict[Edge, list[tuple[str, str]]],
-        node_labels: list[str],
-    ):
-        self.fas_edges = fas_edges
-        self.merged_edges = merged_edges
-        self.node_labels = node_labels
-        self.removed_edges: list[tuple[str, str]] = []
-        self.smartAE_restored: SortedList[tuple[str, str]] = SortedList()
-
-    def add_removed_edges(self, edges: list[Edge]):
-        for source, target in edges:
-            self.removed_edges.append(
-                (self.node_labels[source], self.node_labels[target])
-            )
-
-    def add_smartAE_restored(self, edges: list[Edge]):
-        for source, target in edges:
-            self.smartAE_restored.add(
-                (self.node_labels[source], self.node_labels[target])
-            )
+class OrderingFASBuilder:
+    def __init__(self: Self):
+        self.removed_edges: list[Edge] = []
+        self.smartAE_restored: SortedList[Edge] = SortedList()
 
     def merge(self, other: Self):
         self.removed_edges.extend(other.removed_edges)
         self.smartAE_restored.update(other.smartAE_restored)
 
-    def build_fas(self):
-        fas = copy(self.fas_edges)
-        for source, target in self.removed_edges:
-            # skip if smartAE restored the edge
-            if (source, target) not in self.smartAE_restored:
-                # if the current edge is merged from reductions, unmerge it
-                if (source, target) in self.merged_edges:
-                    uunmerged_source, unmerged_target = self.merged_edges[
-                        (source, target)
-                    ].pop()
-                    fas.append((uunmerged_source, unmerged_target))
-                else:
-                    fas.append((source, target))
-        return fas
+    def add_removed_edges(self, edges: Iterable[Edge]):
+        self.removed_edges.extend(edges)
 
-
-class OrderingFASBuilder:
-    def __init__(
-        self,
-        fas_edges: list[tuple[str, str]],
-        merged_edges: dict[Edge, list[tuple[str, str]]],
-        node_labels: list[str],
-    ):
-        self.fas_edges = fas_edges
-        self.merged_edges = merged_edges
-        self.node_labels = node_labels
-        self.forward = OrderingFASEdges(
-            self.fas_edges, self.merged_edges, self.node_labels
-        )
-        self.backward = OrderingFASEdges(
-            self.fas_edges, self.merged_edges, self.node_labels
-        )
-
-    def merge(self, other: Self):
-        self.forward.merge(other.forward)
-        self.backward.merge(other.backward)
+    def add_smartAE_restored(self, edges: Iterable[Edge]):
+        self.smartAE_restored.update(edges)
 
 
 class FASBuilder:
@@ -82,9 +31,7 @@ class FASBuilder:
         )
         self.node_labels = node_labels
         self.orderings: defaultdict[str, OrderingFASBuilder] = defaultdict(
-            lambda: OrderingFASBuilder(
-                self.fas_edges, self.merged_edges, self.node_labels
-            )
+            OrderingFASBuilder
         )
 
     def add_fas_edges(self, edges: list[Edge]):
@@ -99,15 +46,31 @@ class FASBuilder:
                 for u, v in merged_edges
             )
 
-    def ordering(self, name: str) -> OrderingFASBuilder:
-        self.orderings[name] = OrderingFASBuilder(
-            self.fas_edges, self.merged_edges, self.node_labels
-        )
-
-        return self.orderings[name]
+    def add_ordering(self, name: str, ordering: OrderingFASBuilder):
+        self.orderings[name] = ordering
 
     def merge(self, other: Self):
         self.fas_edges.extend(other.fas_edges)
         self.merged_edges.update(other.merged_edges)
         for name, ordering_fas in other.orderings.items():
             self.orderings[name].merge(ordering_fas)
+
+    def build_fas(self, name: str) -> list[tuple[str, str]]:
+        ordering_builder = self.orderings[name]
+
+        fas = copy(self.fas_edges)
+        merged_edges = copy(self.merged_edges)
+        for source, target in ordering_builder.removed_edges:
+            # skip if smartAE restored the edge
+            if (source, target) not in ordering_builder.smartAE_restored:
+                # if the current edge is merged from reductions, unmerge it
+                if (source, target) in merged_edges:
+                    unmerged_source, unmerged_target = self.merged_edges[
+                        (source, target)
+                    ].pop()
+                    fas.append((unmerged_source, unmerged_target))
+                else:
+                    fas.append(
+                        (self.node_labels[source], self.node_labels[target])
+                    )
+        return fas

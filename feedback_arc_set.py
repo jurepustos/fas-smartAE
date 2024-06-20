@@ -4,106 +4,145 @@ from copy import copy
 from sortedcontainers import SortedList
 
 from fas_builder import FASBuilder, OrderingFASBuilder
-from fas_graph import FASGraph
+from fas_graph import FASGraph, Node
+
+DIRECTIONS = ["forward", "backward"]
 
 
 def feedback_arc_set(
     graph: FASGraph,
     use_smartAE: bool = True,
     reduce: bool = True,
-    random_ordering: bool = False,
-    greedy_orderings: bool = False,
-) -> dict[str, tuple[str, str]]:
+    random_ordering: bool = True,
+    greedy_orderings: bool = True,
+) -> dict[str, list[tuple[str, str]]]:
     """
     Searches for a minimal Feedback Arc Set of the input graph
     and returns an approximate answer as a list of edges.
     """
     fas_builder = FASBuilder(graph.get_node_labels())
-    reduction_merged_edges = {}
-    reduction_fas_edges = [(n, n) for n in graph.get_self_loops()]
     if reduce:
-        reduction_merged_edges.update(graph.remove_runs())
-        reduction_fas_edges.extend(graph.remove_2cycles())
+        fas_builder.add_merged_edges(graph.remove_runs())
+        fas_builder.add_fas_edges(graph.remove_2cycles())
 
-    fas_builder.add_fas_edges(reduction_fas_edges)
-    fas_builder.add_merged_edges(reduction_merged_edges)
-    for component in graph.iter_strongly_connected_components():
+    for i, component in enumerate(graph.iter_strongly_connected_components()):
+        print(
+            f"Component {i}: {component.get_num_nodes()} nodes, {component.get_num_edges()} edges"
+        )
         component_fas_builder = FASBuilder(component.get_node_labels())
 
         if component.get_num_nodes() < 2:
-            fas_builder.merge(component_fas_builder)
             continue
 
         component_nodes = component.get_nodes()
         component_nodes.sort(key=component.get_out_degree)
-        compute_fas(
-            component,
-            component_nodes,
-            component_fas_builder.ordering("out_asc"),
-            use_smartAE=use_smartAE,
-        )
+        for direction in DIRECTIONS:
+            print(f"\tComputing out_asc_{direction}")
+            component_fas_builder.add_ordering(
+                f"out_asc_{direction}",
+                compute_fas(
+                    component,
+                    component_nodes,
+                    direction,
+                    use_smartAE=use_smartAE,
+                ),
+            )
+            print(f"\tFinished out_asc_{direction}")
 
         component_nodes.reverse()
-        compute_fas(
-            component,
-            component_nodes,
-            component_fas_builder.ordering("out_desc"),
-            use_smartAE=use_smartAE,
-        )
+        for direction in DIRECTIONS:
+            print(f"\tComputing out_desc_{direction}")
+            component_fas_builder.add_ordering(
+                f"out_desc_{direction}",
+                compute_fas(
+                    component,
+                    component_nodes,
+                    direction,
+                    use_smartAE=use_smartAE,
+                ),
+            )
+            print(f"\tFinished out_desc_{direction}")
 
-        component_nodes.sort(key=component.get_in_degree)
-        compute_fas(
-            component,
-            component_nodes,
-            component_fas_builder.ordering("in_asc"),
-            use_smartAE=use_smartAE,
-        )
+        component_nodes = component.get_nodes()
+        component_nodes.sort(key=component.get_out_degree)
+        for direction in DIRECTIONS:
+            print(f"\tComputing in_asc_{direction}")
+            component_fas_builder.add_ordering(
+                f"in_asc_{direction}",
+                compute_fas(
+                    component,
+                    component_nodes,
+                    direction,
+                    use_smartAE=use_smartAE,
+                ),
+            )
+            print(f"\tFinished in_asc_{direction}")
 
         component_nodes.reverse()
-        compute_fas(
-            component,
-            component_nodes,
-            component_fas_builder.ordering("in_desc"),
-            use_smartAE=use_smartAE,
-        )
+        for direction in DIRECTIONS:
+            print(f"\tComputing in_desc_{direction}")
+            component_fas_builder.add_ordering(
+                f"in_desc_{direction}",
+                compute_fas(
+                    component,
+                    component_nodes,
+                    direction,
+                    use_smartAE=use_smartAE,
+                ),
+            )
+            print(f"\tFinished in_desc_{direction}")
 
         if random_ordering:
             random.shuffle(component_nodes)
-            compute_fas(
-                component,
-                component_nodes,
-                component_fas_builder.ordering("random"),
-                use_smartAE=use_smartAE,
-            )
+            for direction in DIRECTIONS:
+                print(f"\tComputing random_{direction}")
+                component_fas_builder.add_ordering(
+                    f"random_{direction}",
+                    compute_fas(
+                        component,
+                        component_nodes,
+                        direction,
+                        use_smartAE=use_smartAE,
+                    ),
+                )
+                print(f"\tFinished random_{direction}")
 
         if greedy_orderings:
             scores1, scores2 = compute_scores(component, component_nodes)
-            compute_fas(
-                component,
-                scores1,
-                component_fas_builder.ordering("greedy1"),
-                use_smartAE=use_smartAE,
-            )
-            compute_fas(
-                component,
-                scores2,
-                component_fas_builder.ordering("greedy2"),
-                use_smartAE=use_smartAE,
-            )
+
+            for direction in DIRECTIONS:
+                print(f"\tComputing greedy1_{direction}")
+                component_fas_builder.add_ordering(
+                    f"greedy1_{direction}",
+                    compute_fas(
+                        component,
+                        scores1,
+                        direction,
+                        use_smartAE=use_smartAE,
+                    ),
+                )
+                print(f"\tFinished greedy1_{direction}")
+
+            for direction in DIRECTIONS:
+                print(f"\tComputing greedy2_{direction}")
+                component_fas_builder.add_ordering(
+                    f"greedy2_{direction}",
+                    compute_fas(
+                        component,
+                        scores1,
+                        direction,
+                        use_smartAE=use_smartAE,
+                    ),
+                )
+                print(f"\tFinished greedy2_{direction}")
 
         fas_builder.merge(component_fas_builder)
 
     if len(fas_builder.orderings) > 0:
         instances = {
-            f"{name}_forward": ordering.forward.build_fas()
+            name: fas_builder.build_fas(name)
             for name, ordering in fas_builder.orderings.items()
         }
-        instances.update(
-            {
-                f"{name}_backward": ordering.backward.build_fas()
-                for name, ordering in fas_builder.orderings.items()
-            }
-        )
     else:
         # all components have single edges
         instances = {"edges": fas_builder.fas_edges}
@@ -114,8 +153,8 @@ def feedback_arc_set(
 def compute_scores(
     graph: FASGraph, nodes: list[int]
 ) -> tuple[list[int], list[int]]:
-    score1 = {}
-    score2 = {}
+    score1: dict[Node, float] = {}
+    score2: dict[Node, float] = {}
     for node in nodes:
         in_degree = graph.get_in_degree(node)
         out_degree = graph.get_out_degree(node)
@@ -131,14 +170,19 @@ def compute_scores(
             inv_ratio = out_degree / in_degree
         else:
             inv_ratio = float("inf")
-        score2[node] = int(max(ratio, inv_ratio))
+        score2[node] = max(ratio, inv_ratio)
 
     scores1 = [
-        t[0] for t in sorted(score1.items(), key=lambda x: x[1], reverse=False)
+        node
+        for node, _score in sorted(
+            score1.items(), key=lambda x: x[1], reverse=False
+        )
     ]
     scores2 = [
-        t[0]
-        for t in sorted(score2.items(), key=lambda item: item[1], reverse=False)
+        node
+        for node, _score in sorted(
+            score2.items(), key=lambda item: item[1], reverse=False
+        )
     ]
     return scores1, scores2
 
@@ -146,26 +190,25 @@ def compute_scores(
 def compute_fas(
     graph: FASGraph,
     ordering: list[int],
-    builder: OrderingFASBuilder,
+    direction: str,
     use_smartAE: bool = True,
 ) -> OrderingFASBuilder:
     """
     Computes a minimal FAS for the given graph and node ordering.
     """
-    forward_edges, forward_graph = get_forward_edges(graph, ordering)
-    backward_edges, backward_graph = get_backward_edges(graph, ordering)
+    builder = OrderingFASBuilder()
 
-    builder.forward.add_removed_edges(forward_edges)
-    builder.backward.add_removed_edges(backward_edges)
+    assert direction in ["forward", "backward"]
+    if direction == "forward":
+        edges, reduced_graph = get_forward_edges(graph, ordering)
+    elif direction == "backward":
+        edges, reduced_graph = get_backward_edges(graph, ordering)
+
+    builder.add_removed_edges(edges)
 
     # reduce the size of the FAS with the smartAE heuristic
     if use_smartAE:
-        builder.forward.add_smartAE_restored(
-            smart_ae(forward_graph, forward_edges)
-        )
-        builder.backward.add_smartAE_restored(
-            smart_ae(backward_graph, backward_edges)
-        )
+        builder.add_smartAE_restored(smart_ae(reduced_graph, edges))
 
     return builder
 
