@@ -107,11 +107,13 @@ def feedback_arc_set(
     else:
         # all components have single edges
         instances = {"edges": fas_builder.fas_edges}
-        
+
     return instances
 
 
-def compute_scores(graph: FASGraph, nodes: list[int]) -> tuple[list[int], list[int]]:
+def compute_scores(
+    graph: FASGraph, nodes: list[int]
+) -> tuple[list[int], list[int]]:
     score1 = {}
     score2 = {}
     for node in nodes:
@@ -129,12 +131,15 @@ def compute_scores(graph: FASGraph, nodes: list[int]) -> tuple[list[int], list[i
             inv_ratio = out_degree / in_degree
         else:
             inv_ratio = float("inf")
-        score2[node] = max(ratio, inv_ratio)
+        score2[node] = int(max(ratio, inv_ratio))
 
-    scores1 = sorted(score1.items(), key=lambda x: x[1], reverse=False)
-    scores1 = [t[0] for t in scores1]
-    scores2 = sorted(score2.items(), key=lambda item: item[1], reverse=False)
-    scores2 = [t[0] for t in scores2]
+    scores1 = [
+        t[0] for t in sorted(score1.items(), key=lambda x: x[1], reverse=False)
+    ]
+    scores2 = [
+        t[0]
+        for t in sorted(score2.items(), key=lambda item: item[1], reverse=False)
+    ]
     return scores1, scores2
 
 
@@ -155,8 +160,12 @@ def compute_fas(
 
     # reduce the size of the FAS with the smartAE heuristic
     if use_smartAE:
-        builder.forward.add_smartAE_restored(smart_ae(forward_graph, forward_edges))
-        builder.backward.add_smartAE_restored(smart_ae(backward_graph, backward_edges))
+        builder.forward.add_smartAE_restored(
+            smart_ae(forward_graph, forward_edges)
+        )
+        builder.backward.add_smartAE_restored(
+            smart_ae(backward_graph, backward_edges)
+        )
 
     return builder
 
@@ -219,19 +228,21 @@ def get_backward_edges_from(
     return backward_edges
 
 
-def smart_ae(graph: FASGraph, fas: list[tuple[int, int]]) -> list[tuple[int, int]]:
+def smart_ae(
+    graph: FASGraph, fas: list[tuple[int, int]]
+) -> list[tuple[int, int]]:
     """
-    For details of this algorithm, consult the paper.
+    For details of this algorithm, consult the paper by Cavallaro et al.
     """
     added_edges = []
     while len(fas):
         added_count = 0
-        processed_edges = []
+        processed_edge_indices: list[int] = []
         n = len(fas)
         i = 0
         while i + added_count < n:
             edge = fas[i + added_count]
-            processed_edges.append(edge)
+            processed_edge_indices.append(i + added_count)
 
             graph.add_edge(*edge)
             if graph.is_acyclic():
@@ -241,7 +252,7 @@ def smart_ae(graph: FASGraph, fas: list[tuple[int, int]]) -> list[tuple[int, int
                 graph.remove_edge(*edge)
             i += 1
 
-        for edge in processed_edges:
-            fas.remove(edge)
+        for edge_index in processed_edge_indices:
+            del fas[edge_index]
 
     return added_edges

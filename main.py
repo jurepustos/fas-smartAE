@@ -1,7 +1,6 @@
 import argparse
 import sys
 import time
-from copy import copy
 
 from feedback_arc_set import feedback_arc_set
 from networkit_fas import NetworkitGraph
@@ -10,7 +9,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="A runner of a heuristic algorithm for calculating a minimum Feedback Arc Set of a directed graph"
     )
-    parser.add_argument("filename", help="path to the file containing the input graph")
+    parser.add_argument(
+        "filename", help="path to the file containing the input graph"
+    )
     input_group = parser.add_mutually_exclusive_group()
     input_group.add_argument(
         "-a",
@@ -66,9 +67,13 @@ if __name__ == "__main__":
 
     print(f"Reading input file {args.filename}", file=sys.stderr)
     if args.format == "adjacency-list":
-        graph, node_id_mapping = NetworkitGraph.load_from_adjacency_list(args.filename)
+        graph, node_id_mapping = NetworkitGraph.load_from_adjacency_list(
+            args.filename
+        )
     else:
-        graph, node_id_mapping = NetworkitGraph.load_from_edge_list(args.filename)
+        graph, node_id_mapping = NetworkitGraph.load_from_edge_list(
+            args.filename
+        )
 
     print("Starting calculation of minFAS")
     start_time = time.time()

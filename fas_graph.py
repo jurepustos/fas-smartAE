@@ -7,7 +7,7 @@ Edge = tuple[Node, Node]
 
 class FASGraph(ABC):
     @abstractmethod
-    def get_node_labels(self) -> dict[Node, str]:
+    def get_node_labels(self) -> list[str]:
         raise NotImplementedError
 
     @abstractmethod
@@ -86,5 +86,7 @@ class FASGraph(ABC):
 
     @classmethod
     @abstractmethod
-    def load_from_adjacency_list(cls, filename: str) -> tuple[Self, dict[str, Node]]:
+    def load_from_adjacency_list(
+        cls, filename: str
+    ) -> tuple[Self, dict[str, Node]]:
         raise NotImplementedError

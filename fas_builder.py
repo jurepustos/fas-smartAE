@@ -10,8 +10,8 @@ from fas_graph import Edge, Node
 class OrderingFASEdges:
     def __init__(
         self,
-        fas_edges: list[Edge],
-        merged_edges: dict[Edge, list[Edge]],
+        fas_edges: list[tuple[str, str]],
+        merged_edges: dict[Edge, list[tuple[str, str]]],
         node_labels: list[str],
     ):
         self.fas_edges = fas_edges
@@ -77,7 +77,9 @@ class OrderingFASBuilder:
 class FASBuilder:
     def __init__(self, node_labels: list[str]):
         self.fas_edges: list[tuple[str, str]] = []
-        self.merged_edges: defaultdict[Edge, list[tuple[str, str]]] = defaultdict(list)
+        self.merged_edges: defaultdict[Edge, list[tuple[str, str]]] = (
+            defaultdict(list)
+        )
         self.node_labels = node_labels
         self.orderings: defaultdict[str, OrderingFASBuilder] = defaultdict(
             lambda: OrderingFASBuilder(
@@ -93,7 +95,8 @@ class FASBuilder:
     def add_merged_edges(self, merges: dict[Edge, list[Edge]]):
         for edge, merged_edges in merges.items():
             self.merged_edges[edge].extend(
-                (self.node_labels[u], self.node_labels[v]) for u, v in merged_edges
+                (self.node_labels[u], self.node_labels[v])
+                for u, v in merged_edges
             )
 
     def ordering(self, name: str) -> OrderingFASBuilder:
