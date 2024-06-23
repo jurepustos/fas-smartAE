@@ -78,8 +78,8 @@ def argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-t",
         "--threads",
-        nargs=1,
         action="store",
+        type=int,
         default=1,
         help="set the number of concurrent threads to run on (default 1)",
     )
@@ -106,8 +106,10 @@ def open_textIO(
     dir: str | None, filename: str | None, fallback: TextIO
 ) -> Iterator[TextIO]:
     if dir is not None and filename is not None:
-        os.makedirs(os.path.join(dir, os.path.dirname(filename)), exist_ok=True)
-        with open(filename, "w") as output:
+        dirpath = os.path.join(dir, os.path.dirname(filename))
+        filepath = os.path.join(dir, filename)
+        os.makedirs(dirpath, exist_ok=True)
+        with open(filepath, "w") as output:
             yield output
     else:
         yield fallback
@@ -123,19 +125,19 @@ def run_algorithm(
     greedy_orderings: bool,
 ):
     with (
-        open_textIO(
-            output_dir, f"{filename}.out", sys.stdout
-        ) as output,
+        open_textIO(output_dir, f"{filename}.out", sys.stdout) as output,
         open_textIO(log_dir, f"{filename}.log", sys.stderr) as log,
     ):
-        print(f"Reading input file {filename}", file=log)
+        print(f"Reading input file {filename}", file=sys.stderr)
         print(filename, file=output)
         if args.format == "adjacency-list":
             graph, node_id_mapping = NetworkitGraph.load_from_adjacency_list(
                 filename
             )
         else:
-            graph, node_id_mapping = NetworkitGraph.load_from_edge_list(filename)
+            graph, node_id_mapping = NetworkitGraph.load_from_edge_list(
+                filename
+            )
 
         print("Starting calculation of minFAS", file=log)
         start_time = time.time()
@@ -145,12 +147,13 @@ def run_algorithm(
             reduce=reduce,
             random_ordering=random_ordering,
             greedy_orderings=greedy_orderings,
-            log_file=log
+            log_file=log,
         )
         end_time = time.time()
 
         print(
-            f"V = {graph.get_num_nodes()}, E = {graph.get_num_edges()}", file=output
+            f"V = {graph.get_num_nodes()}, E = {graph.get_num_edges()}",
+            file=output,
         )
         for method, fas in fas_instances.items():
             # print(method, len(fas), fas)
