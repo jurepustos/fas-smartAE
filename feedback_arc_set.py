@@ -1,10 +1,12 @@
 import random
+import sys
 from copy import copy
 
 from sortedcontainers import SortedList
 
 from fas_builder import FASBuilder, OrderingFASBuilder
 from fas_graph import FASGraph, Node
+from typing import TextIO
 
 DIRECTIONS = ["forward", "backward"]
 
@@ -15,6 +17,7 @@ def feedback_arc_set(
     reduce: bool = True,
     random_ordering: bool = True,
     greedy_orderings: bool = True,
+    log_file: TextIO = sys.stderr,
 ) -> dict[str, list[tuple[str, str]]]:
     """
     Searches for a minimal Feedback Arc Set of the input graph
@@ -27,7 +30,8 @@ def feedback_arc_set(
 
     for i, component in enumerate(graph.iter_strongly_connected_components()):
         print(
-            f"Component {i}: {component.get_num_nodes()} nodes, {component.get_num_edges()} edges"
+            f"Component {i}: {component.get_num_nodes()} nodes, {component.get_num_edges()} edges",
+            file=log_file,
         )
         component_fas_builder = FASBuilder(component.get_node_labels())
 
@@ -37,7 +41,7 @@ def feedback_arc_set(
         component_nodes = component.get_nodes()
         component_nodes.sort(key=component.get_out_degree)
         for direction in DIRECTIONS:
-            print(f"\tComputing out_asc_{direction}")
+            print(f"\tComputing out_asc_{direction}", file=log_file)
             component_fas_builder.add_ordering(
                 f"out_asc_{direction}",
                 compute_fas(
@@ -47,11 +51,11 @@ def feedback_arc_set(
                     use_smartAE=use_smartAE,
                 ),
             )
-            print(f"\tFinished out_asc_{direction}")
+            print(f"\tFinished out_asc_{direction}", file=log_file)
 
         component_nodes.reverse()
         for direction in DIRECTIONS:
-            print(f"\tComputing out_desc_{direction}")
+            print(f"\tComputing out_desc_{direction}", file=log_file)
             component_fas_builder.add_ordering(
                 f"out_desc_{direction}",
                 compute_fas(
@@ -61,12 +65,12 @@ def feedback_arc_set(
                     use_smartAE=use_smartAE,
                 ),
             )
-            print(f"\tFinished out_desc_{direction}")
+            print(f"\tFinished out_desc_{direction}", file=log_file)
 
         component_nodes = component.get_nodes()
         component_nodes.sort(key=component.get_out_degree)
         for direction in DIRECTIONS:
-            print(f"\tComputing in_asc_{direction}")
+            print(f"\tComputing in_asc_{direction}", file=log_file)
             component_fas_builder.add_ordering(
                 f"in_asc_{direction}",
                 compute_fas(
@@ -76,11 +80,11 @@ def feedback_arc_set(
                     use_smartAE=use_smartAE,
                 ),
             )
-            print(f"\tFinished in_asc_{direction}")
+            print(f"\tFinished in_asc_{direction}", file=log_file)
 
         component_nodes.reverse()
         for direction in DIRECTIONS:
-            print(f"\tComputing in_desc_{direction}")
+            print(f"\tComputing in_desc_{direction}", file=log_file)
             component_fas_builder.add_ordering(
                 f"in_desc_{direction}",
                 compute_fas(
@@ -90,12 +94,12 @@ def feedback_arc_set(
                     use_smartAE=use_smartAE,
                 ),
             )
-            print(f"\tFinished in_desc_{direction}")
+            print(f"\tFinished in_desc_{direction}", file=log_file)
 
         if random_ordering:
             random.shuffle(component_nodes)
             for direction in DIRECTIONS:
-                print(f"\tComputing random_{direction}")
+                print(f"\tComputing random_{direction}", file=log_file)
                 component_fas_builder.add_ordering(
                     f"random_{direction}",
                     compute_fas(
@@ -105,13 +109,13 @@ def feedback_arc_set(
                         use_smartAE=use_smartAE,
                     ),
                 )
-                print(f"\tFinished random_{direction}")
+                print(f"\tFinished random_{direction}", file=log_file)
 
         if greedy_orderings:
             scores1, scores2 = compute_scores(component, component_nodes)
 
             for direction in DIRECTIONS:
-                print(f"\tComputing greedy1_{direction}")
+                print(f"\tComputing greedy1_{direction}", file=log_file)
                 component_fas_builder.add_ordering(
                     f"greedy1_{direction}",
                     compute_fas(
@@ -121,10 +125,10 @@ def feedback_arc_set(
                         use_smartAE=use_smartAE,
                     ),
                 )
-                print(f"\tFinished greedy1_{direction}")
+                print(f"\tFinished greedy1_{direction}", file=log_file)
 
             for direction in DIRECTIONS:
-                print(f"\tComputing greedy2_{direction}")
+                print(f"\tComputing greedy2_{direction}", file=log_file)
                 component_fas_builder.add_ordering(
                     f"greedy2_{direction}",
                     compute_fas(
@@ -134,7 +138,7 @@ def feedback_arc_set(
                         use_smartAE=use_smartAE,
                     ),
                 )
-                print(f"\tFinished greedy2_{direction}")
+                print(f"\tFinished greedy2_{direction}", file=log_file)
 
         fas_builder.merge(component_fas_builder)
 
