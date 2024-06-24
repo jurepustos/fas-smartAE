@@ -14,6 +14,12 @@ class Direction(enum.Enum):
     FORWARD = enum.auto()
     BACKWARD = enum.auto()
 
+    def __str__(self):
+        if self == Direction.FORWARD:
+            return "forward"
+        else:
+            return "backward"
+
 
 DIRECTIONS = [Direction.FORWARD, Direction.BACKWARD]
 
@@ -279,7 +285,10 @@ def get_direction_edges_from(
 ) -> list[tuple[int, int]]:
     backward_edges = []
     start_node = ordering[start_index]
-    start_neighbors = SortedList(graph.iter_in_neighbors(start_node))
+    if direction == Direction.FORWARD:
+        start_neighbors = SortedList(graph.iter_out_neighbors(start_node))
+    else:
+        start_neighbors = SortedList(graph.iter_in_neighbors(start_node))
     for node_index in range(start_index + 1, len(ordering)):
         node = ordering[node_index]
         if node in start_neighbors:
