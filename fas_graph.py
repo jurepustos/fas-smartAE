@@ -63,6 +63,10 @@ class FASGraph(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def edge_between_components(self, source: Node, target: Node) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
     def add_edges(self, edges: list[Edge]):
         raise NotImplementedError
 

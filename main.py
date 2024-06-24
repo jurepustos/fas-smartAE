@@ -76,6 +76,13 @@ def argument_parser() -> argparse.ArgumentParser:
         help="use greedy orderings",
     )
     parser.add_argument(
+        "-p",
+        "--performance",
+        action="store_true",
+        default=False,
+        help="enables an improvement that makes the algorithm slower, but produces better results",
+    )
+    parser.add_argument(
         "-t",
         "--threads",
         action="store",
@@ -123,6 +130,7 @@ def run_algorithm(
     reduce: bool,
     random_ordering: bool,
     greedy_orderings: bool,
+    performance_mode: bool,
 ):
     with (
         open_textIO(output_dir, f"{filename}.out", sys.stdout) as output,
@@ -147,6 +155,7 @@ def run_algorithm(
             reduce=reduce,
             random_ordering=random_ordering,
             greedy_orderings=greedy_orderings,
+            performance_mode=performance_mode,
             log_file=log,
         )
         end_time = time.time()
@@ -173,6 +182,7 @@ if __name__ == "__main__":
                 args.reduce,
                 args.random_ordering,
                 args.greedy_orderings,
+                args.performance,
             )
     else:
         with ProcessPoolExecutor(args.threads) as executor:
@@ -185,4 +195,5 @@ if __name__ == "__main__":
                 itertools.repeat(args.reduce),
                 itertools.repeat(args.random_ordering),
                 itertools.repeat(args.greedy_orderings),
+                itertools.repeat(args.performance),
             )

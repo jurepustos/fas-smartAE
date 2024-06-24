@@ -1,14 +1,21 @@
+import enum
 import random
 import sys
 from copy import copy
+from typing import TextIO
 
 from sortedcontainers import SortedList
 
 from fas_builder import FASBuilder, OrderingFASBuilder
 from fas_graph import FASGraph, Node
-from typing import TextIO
 
-DIRECTIONS = ["forward", "backward"]
+
+class Direction(enum.Enum):
+    FORWARD = enum.auto()
+    BACKWARD = enum.auto()
+
+
+DIRECTIONS = [Direction.FORWARD, Direction.BACKWARD]
 
 
 def feedback_arc_set(
@@ -17,6 +24,7 @@ def feedback_arc_set(
     reduce: bool = True,
     random_ordering: bool = True,
     greedy_orderings: bool = True,
+    performance_mode: bool = False,
     log_file: TextIO = sys.stderr,
 ) -> dict[str, list[tuple[str, str]]]:
     """
@@ -49,6 +57,7 @@ def feedback_arc_set(
                     component_nodes,
                     direction,
                     use_smartAE=use_smartAE,
+                    performance_mode=performance_mode,
                 ),
             )
             print(f"\tFinished out_asc_{direction}", file=log_file)
@@ -63,6 +72,7 @@ def feedback_arc_set(
                     component_nodes,
                     direction,
                     use_smartAE=use_smartAE,
+                    performance_mode=performance_mode,
                 ),
             )
             print(f"\tFinished out_desc_{direction}", file=log_file)
@@ -78,6 +88,7 @@ def feedback_arc_set(
                     component_nodes,
                     direction,
                     use_smartAE=use_smartAE,
+                    performance_mode=performance_mode,
                 ),
             )
             print(f"\tFinished in_asc_{direction}", file=log_file)
@@ -92,6 +103,7 @@ def feedback_arc_set(
                     component_nodes,
                     direction,
                     use_smartAE=use_smartAE,
+                    performance_mode=performance_mode,
                 ),
             )
             print(f"\tFinished in_desc_{direction}", file=log_file)
@@ -107,6 +119,7 @@ def feedback_arc_set(
                         component_nodes,
                         direction,
                         use_smartAE=use_smartAE,
+                        performance_mode=performance_mode,
                     ),
                 )
                 print(f"\tFinished random_{direction}", file=log_file)
@@ -123,6 +136,7 @@ def feedback_arc_set(
                         scores1,
                         direction,
                         use_smartAE=use_smartAE,
+                        performance_mode=performance_mode,
                     ),
                 )
                 print(f"\tFinished greedy1_{direction}", file=log_file)
@@ -136,6 +150,7 @@ def feedback_arc_set(
                         scores1,
                         direction,
                         use_smartAE=use_smartAE,
+                        performance_mode=performance_mode,
                     ),
                 )
                 print(f"\tFinished greedy2_{direction}", file=log_file)
@@ -194,19 +209,18 @@ def compute_scores(
 def compute_fas(
     graph: FASGraph,
     ordering: list[int],
-    direction: str,
+    direction: Direction,
     use_smartAE: bool = True,
+    performance_mode: bool = False,
 ) -> OrderingFASBuilder:
     """
     Computes a minimal FAS for the given graph and node ordering.
     """
     builder = OrderingFASBuilder()
 
-    assert direction in ["forward", "backward"]
-    if direction == "forward":
-        edges, reduced_graph = get_forward_edges(graph, ordering)
-    elif direction == "backward":
-        edges, reduced_graph = get_backward_edges(graph, ordering)
+    edges, reduced_graph = get_direction_edges(
+        graph, ordering, direction=direction, performance_mode=performance_mode
+    )
 
     builder.add_removed_edges(edges)
 
@@ -217,52 +231,33 @@ def compute_fas(
     return builder
 
 
-def get_forward_edges(
-    graph: FASGraph, ordering: list[int]
+def get_direction_edges(
+    graph: FASGraph,
+    ordering: list[int],
+    direction: Direction,
+    performance_mode: bool = False,
 ) -> tuple[list[tuple[int, int]], FASGraph]:
-    forward_edges = []
-    forward_graph = copy(graph)
+    direction_edges = []
+    reduced_graph = copy(graph)
     for i in range(len(ordering)):
-        edges = get_forward_edges_from(graph, ordering, i)
-        forward_edges.extend(edges)
-        forward_graph.remove_edges(edges)
-        if forward_graph.is_acyclic():
-            break
+        edges = get_direction_edges_from(graph, ordering, i, direction)
+        reduced_graph.remove_edges(edges)
+        if performance_mode:
+            for source, target in edges:
+                if not reduced_graph.edge_between_components(source, target):
+                    direction_edges.append((source, target))
+            if reduced_graph.is_acyclic():
+                break
+        else:
+            direction_edges.extend(edges)
+            if reduced_graph.is_acyclic():
+                break
 
-    return forward_edges, forward_graph
-
-
-def get_forward_edges_from(
-    graph: FASGraph, ordering: list[int], start_index: int
-) -> list[tuple[int, int]]:
-    forward_edges = []
-    start_node = ordering[start_index]
-    start_neighbors = SortedList(graph.iter_out_neighbors(start_node))
-    for node_index in range(start_index + 1, len(ordering)):
-        node = ordering[node_index]
-        if node in start_neighbors:
-            for _ in range(graph.get_edge_weight(start_node, node)):
-                forward_edges.append((start_node, node))
-    return forward_edges
+    return direction_edges, reduced_graph
 
 
-def get_backward_edges(
-    graph: FASGraph, ordering: list[int]
-) -> tuple[list[tuple[int, int]], FASGraph]:
-    backward_edges = []
-    backward_graph = copy(graph)
-    for i in range(len(ordering)):
-        edges = get_backward_edges_from(graph, ordering, i)
-        backward_edges.extend(edges)
-        backward_graph.remove_edges(edges)
-        if backward_graph.is_acyclic():
-            break
-
-    return backward_edges, backward_graph
-
-
-def get_backward_edges_from(
-    graph: FASGraph, ordering: list[int], start_index: int
+def get_direction_edges_from(
+    graph: FASGraph, ordering: list[int], start_index: int, direction: Direction
 ) -> list[tuple[int, int]]:
     backward_edges = []
     start_node = ordering[start_index]
@@ -270,8 +265,12 @@ def get_backward_edges_from(
     for node_index in range(start_index + 1, len(ordering)):
         node = ordering[node_index]
         if node in start_neighbors:
-            for _ in range(graph.get_edge_weight(node, start_node)):
-                backward_edges.append((node, start_node))
+            if direction == Direction.FORWARD:
+                for _ in range(graph.get_edge_weight(start_node, node)):
+                    backward_edges.append((start_node, node))
+            else:
+                for _ in range(graph.get_edge_weight(node, start_node)):
+                    backward_edges.append((node, start_node))
     return backward_edges
 
 

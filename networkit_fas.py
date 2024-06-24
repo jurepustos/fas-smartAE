@@ -24,7 +24,7 @@ class NetworkitGraph(FASGraph):
             if node_labels is not None
             else list(networkit_graph.iterNodes())
         )
-        self.known_acyclic = False
+        self.acyclic: bool | None = None
         self.added_backward_edge: Edge | None = None
         self.prev_topological_sort: list[Node] | None = None
         self.prev_inv_topological_sort: list[Node] | None = None
@@ -139,27 +139,37 @@ class NetworkitGraph(FASGraph):
             yield self.__class__(compact_subgraph, node_labels=labels)
 
     def is_acyclic(self) -> bool:
-        if self.known_acyclic:
-            return True
+        if self.acyclic is not None:
+            return self.acyclic
 
         try:
             self.topological_sort = GraphTools.topologicalSort(self.graph)
         except RuntimeError:
-            self.known_acyclic = False
+            self.acyclic = False
             return False
 
         assert self.topological_sort is not None
         self.inv_topological_sort = len(self.topological_sort) * [0]
         for i, node in enumerate(self.topological_sort):
             self.inv_topological_sort[node] = i
-        self.known_acyclic = True
+        self.acyclic = True
         return True
 
     def get_edge_weight(self, source: Node, target: Node) -> int:
         return int(self.graph.weight(source, target))
 
+    def edge_between_components(self, source: Node, target: Node) -> bool:
+        cc = StronglyConnectedComponents(self.graph)
+        cc.run()
+        if cc.numberOfComponents() == self.get_num_nodes():
+            self.acyclic = True
+        else:
+            self.acyclic = False
+        partition = cc.getPartition()
+        return not partition.inSameSubset(source, target)
+
     def edge_preserves_topology(self, source: Node, target: Node) -> bool:
-        if not self.known_acyclic or self.inv_topological_sort is None:
+        if not self.acyclic or self.inv_topological_sort is None:
             # we only know the answer if we know the graph is acyclic
             return False
 
@@ -175,10 +185,8 @@ class NetworkitGraph(FASGraph):
     def add_edge(self, source: Node, target: Node):
         # check if the edge violates the topological ordering,
         # making the graph cyclic.
-        if self.known_acyclic and not self.edge_preserves_topology(
-            source, target
-        ):
-            self.known_acyclic = False
+        if self.acyclic and not self.edge_preserves_topology(source, target):
+            self.acyclic = None
             if self.added_backward_edge is None:
                 self.added_backward_edge = source, target
                 self.prev_topological_sort = self.topological_sort
@@ -202,7 +210,7 @@ class NetworkitGraph(FASGraph):
             self.inv_topological_sort = self.prev_inv_topological_sort
             self.prev_topological_sort = None
             self.prev_inv_topological_sort = None
-            self.known_acyclic = True
+            self.acyclic = True
 
         if self.graph.weight(source, target) > 1:
             self.graph.increaseWeight(source, target, -1)
