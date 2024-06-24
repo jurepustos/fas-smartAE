@@ -22,6 +22,7 @@ def feedback_arc_set(
     graph: FASGraph,
     use_smartAE: bool = True,
     reduce: bool = True,
+    quick: bool = False,
     random_ordering: bool = True,
     greedy_orderings: bool = True,
     performance_mode: bool = False,
@@ -46,67 +47,84 @@ def feedback_arc_set(
         if component.get_num_nodes() < 2:
             continue
 
-        component_nodes = component.get_nodes()
-        component_nodes.sort(key=component.get_out_degree)
-        for direction in DIRECTIONS:
-            print(f"\tComputing out_asc_{direction}", file=log_file)
-            component_fas_builder.add_ordering(
-                f"out_asc_{direction}",
-                compute_fas(
-                    component,
-                    component_nodes,
-                    direction,
-                    use_smartAE=use_smartAE,
-                    performance_mode=performance_mode,
-                ),
-            )
-            print(f"\tFinished out_asc_{direction}", file=log_file)
+        if quick:
+            component_nodes = component.get_nodes()
+            component_nodes.sort(key=component.get_out_degree, reverse=True)
+            for direction in DIRECTIONS:
+                print(f"\tComputing out_desc_{direction}", file=log_file)
+                component_fas_builder.add_ordering(
+                    f"out_desc_{direction}",
+                    compute_fas(
+                        component,
+                        component_nodes,
+                        direction,
+                        use_smartAE=use_smartAE,
+                        performance_mode=performance_mode,
+                    ),
+                )
+                print(f"\tFinished out_desc_{direction}", file=log_file)
+        else:
+            component_nodes = component.get_nodes()
+            component_nodes.sort(key=component.get_out_degree)
+            for direction in DIRECTIONS:
+                print(f"\tComputing out_asc_{direction}", file=log_file)
+                component_fas_builder.add_ordering(
+                    f"out_asc_{direction}",
+                    compute_fas(
+                        component,
+                        component_nodes,
+                        direction,
+                        use_smartAE=use_smartAE,
+                        performance_mode=performance_mode,
+                    ),
+                )
+                print(f"\tFinished out_asc_{direction}", file=log_file)
 
-        component_nodes.reverse()
-        for direction in DIRECTIONS:
-            print(f"\tComputing out_desc_{direction}", file=log_file)
-            component_fas_builder.add_ordering(
-                f"out_desc_{direction}",
-                compute_fas(
-                    component,
-                    component_nodes,
-                    direction,
-                    use_smartAE=use_smartAE,
-                    performance_mode=performance_mode,
-                ),
-            )
-            print(f"\tFinished out_desc_{direction}", file=log_file)
+            component_nodes.reverse()
+            for direction in DIRECTIONS:
+                print(f"\tComputing out_desc_{direction}", file=log_file)
+                component_fas_builder.add_ordering(
+                    f"out_desc_{direction}",
+                    compute_fas(
+                        component,
+                        component_nodes,
+                        direction,
+                        use_smartAE=use_smartAE,
+                        performance_mode=performance_mode,
+                    ),
+                )
+                print(f"\tFinished out_desc_{direction}", file=log_file)
 
-        component_nodes = component.get_nodes()
-        component_nodes.sort(key=component.get_out_degree)
-        for direction in DIRECTIONS:
-            print(f"\tComputing in_asc_{direction}", file=log_file)
-            component_fas_builder.add_ordering(
-                f"in_asc_{direction}",
-                compute_fas(
-                    component,
-                    component_nodes,
-                    direction,
-                    use_smartAE=use_smartAE,
-                    performance_mode=performance_mode,
-                ),
-            )
-            print(f"\tFinished in_asc_{direction}", file=log_file)
+            component_nodes = component.get_nodes()
+            component_nodes.sort(key=component.get_out_degree)
+            for direction in DIRECTIONS:
+                print(f"\tComputing in_asc_{direction}", file=log_file)
+                component_fas_builder.add_ordering(
+                    f"in_asc_{direction}",
+                    compute_fas(
+                        component,
+                        component_nodes,
+                        direction,
+                        use_smartAE=use_smartAE,
+                        performance_mode=performance_mode,
+                    ),
+                )
+                print(f"\tFinished in_asc_{direction}", file=log_file)
 
-        component_nodes.reverse()
-        for direction in DIRECTIONS:
-            print(f"\tComputing in_desc_{direction}", file=log_file)
-            component_fas_builder.add_ordering(
-                f"in_desc_{direction}",
-                compute_fas(
-                    component,
-                    component_nodes,
-                    direction,
-                    use_smartAE=use_smartAE,
-                    performance_mode=performance_mode,
-                ),
-            )
-            print(f"\tFinished in_desc_{direction}", file=log_file)
+            component_nodes.reverse()
+            for direction in DIRECTIONS:
+                print(f"\tComputing in_desc_{direction}", file=log_file)
+                component_fas_builder.add_ordering(
+                    f"in_desc_{direction}",
+                    compute_fas(
+                        component,
+                        component_nodes,
+                        direction,
+                        use_smartAE=use_smartAE,
+                        performance_mode=performance_mode,
+                    ),
+                )
+                print(f"\tFinished in_desc_{direction}", file=log_file)
 
         if random_ordering:
             random.shuffle(component_nodes)

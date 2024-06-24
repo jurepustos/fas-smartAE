@@ -60,6 +60,13 @@ def argument_parser() -> argparse.ArgumentParser:
         help="apply the smartAE heuristic",
     )
     parser.add_argument(
+        "-q",
+        "--quick",
+        action="store_true",
+        default=False,
+        help="only use the descending out-degree ordering among the degree-based orderings",
+    )
+    parser.add_argument(
         "-ro",
         "--random-ordering",
         action="store_true",
@@ -128,6 +135,7 @@ def run_algorithm(
     log_dir: str | None,
     use_smartAE: bool,
     reduce: bool,
+    quick: bool,
     random_ordering: bool,
     greedy_orderings: bool,
     performance_mode: bool,
@@ -153,6 +161,7 @@ def run_algorithm(
             graph,
             use_smartAE=use_smartAE,
             reduce=reduce,
+            quick=quick,
             random_ordering=random_ordering,
             greedy_orderings=greedy_orderings,
             performance_mode=performance_mode,
@@ -180,6 +189,7 @@ if __name__ == "__main__":
                 args.log,
                 args.smartAE,
                 args.reduce,
+                args.quick,
                 args.random_ordering,
                 args.greedy_orderings,
                 args.performance,
@@ -193,6 +203,7 @@ if __name__ == "__main__":
                 itertools.repeat(args.log),
                 itertools.repeat(args.smartAE),
                 itertools.repeat(args.reduce),
+                itertools.repeat(args.quick),
                 itertools.repeat(args.random_ordering),
                 itertools.repeat(args.greedy_orderings),
                 itertools.repeat(args.performance),
