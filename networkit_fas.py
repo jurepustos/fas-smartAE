@@ -216,6 +216,8 @@ class NetworkitGraph(FASGraph):
             self.graph.increaseWeight(source, target, -1)
         else:
             self.graph.removeEdge(source, target)
+            if not self.acyclic:
+                self.acyclic = None
 
     def remove_edges(self, edges: list[tuple[Node, Node]]):
         for source, target in edges:

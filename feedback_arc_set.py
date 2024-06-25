@@ -325,7 +325,9 @@ def smart_ae(
                 graph.remove_edge(*edge)
             i += 1
 
+        deleted_count = 0
         for edge_index in processed_edge_indices:
-            del fas[edge_index]
+            del fas[edge_index - deleted_count]
+            deleted_count += 1
 
     return added_edges
