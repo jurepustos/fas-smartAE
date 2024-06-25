@@ -265,14 +265,17 @@ def get_direction_edges(
     reduced_graph = copy(graph)
     for i in range(len(ordering)):
         edges = get_direction_edges_from(graph, ordering, i, direction)
-        reduced_graph.remove_edges(edges)
         if performance_mode:
             for source, target in edges:
+                edges_to_remove = []
                 if not reduced_graph.edge_between_components(source, target):
-                    direction_edges.append((source, target))
+                    edges_to_remove.append((source, target))
+                reduced_graph.remove_edges(edges_to_remove)
+                direction_edges.extend(edges_to_remove)
             if reduced_graph.is_acyclic():
                 break
         else:
+            reduced_graph.remove_edges(edges)
             direction_edges.extend(edges)
             if reduced_graph.is_acyclic():
                 break
