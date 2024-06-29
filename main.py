@@ -7,7 +7,7 @@ from concurrent.futures.process import ProcessPoolExecutor
 from contextlib import contextmanager
 from typing import Iterator, TextIO
 
-from feedback_arc_set import feedback_arc_set
+from feedback_arc_set import Mode, feedback_arc_set
 from networkit_fas import NetworkitGraph
 
 
@@ -60,42 +60,38 @@ def argument_parser() -> argparse.ArgumentParser:
         help="apply the smartAE heuristic",
     )
     parser.add_argument(
+        "-m",
+        "--mode",
+        action="store",
+        choices=list(Mode),
+        type=Mode.from_str,
+        default="normal",
+        help="chooses the algorithm running mode (default normal)",
+    )
+    parser.add_argument(
         "-q",
-        "--quick",
+        "--quality",
         action="store_true",
         default=False,
-        help="only use the descending out-degree ordering among the degree-based orderings",
+        help="makes the algorithm slower, but produces better results",
     )
     parser.add_argument(
-        "-ro",
-        "--random-ordering",
-        action="store_true",
-        dest="random_ordering",
-        default=False,
-        help="use a random ordering",
-    )
-    parser.add_argument(
-        "-go",
-        "--greedy-orderings",
-        action="store_true",
-        dest="greedy_orderings",
-        default=False,
-        help="use greedy orderings",
+        "-c",
+        "--concurrent-threads",
+        action="store",
+        dest="concurrent_threads",
+        type=int,
+        default=1,
+        help="set the number of concurrent threads to run separate instances (default 1)",
     )
     parser.add_argument(
         "-p",
-        "--performance",
-        action="store_true",
-        default=False,
-        help="enables an improvement that makes the algorithm slower, but produces better results",
-    )
-    parser.add_argument(
-        "-t",
-        "--threads",
+        "--parallel-threads",
         action="store",
+        dest="parallel_threads",
         type=int,
         default=1,
-        help="set the number of concurrent threads to run on (default 1)",
+        help="set the number of threads to use for each instance (only with -m parallel, default 1)",
     )
     parser.add_argument(
         "-o",
@@ -135,17 +131,15 @@ def run_algorithm(
     log_dir: str | None,
     use_smartAE: bool,
     reduce: bool,
-    quick: bool,
-    random_ordering: bool,
-    greedy_orderings: bool,
-    performance_mode: bool,
+    mode: Mode,
+    quality: bool,
+    threads: int,
 ):
     with (
-        open_textIO(output_dir, f"{filename}.out", sys.stdout) as output,
-        open_textIO(log_dir, f"{filename}.log", sys.stderr) as log,
+        open_textIO(output_dir, f"{filename}.out", sys.stdout) as out_file,
+        open_textIO(log_dir, f"{filename}.log", sys.stderr) as log_file,
     ):
-        print(f"Reading input file {filename}", file=sys.stderr)
-        print(filename, file=output)
+        print(f"Reading input file {filename}", file=log_file)
         if args.format == "adjacency-list":
             graph, node_id_mapping = NetworkitGraph.load_from_adjacency_list(
                 filename
@@ -155,33 +149,31 @@ def run_algorithm(
                 filename
             )
 
-        print("Starting calculation of minFAS", file=log)
+        print("Starting calculation of minFAS", file=log_file)
         start_time = time.time()
         fas_instances = feedback_arc_set(
             graph,
             use_smartAE=use_smartAE,
             reduce=reduce,
-            quick=quick,
-            random_ordering=random_ordering,
-            greedy_orderings=greedy_orderings,
-            performance_mode=performance_mode,
-            log_file=log,
+            mode=mode,
+            quality=quality,
+            log_file=log_file,
+            threads=threads,
         )
         end_time = time.time()
 
         print(
             f"V = {graph.get_num_nodes()}, E = {graph.get_num_edges()}",
-            file=output,
+            file=out_file,
         )
         for method, fas in fas_instances.items():
-            # print(method, len(fas), fas)
-            print(method, len(fas), file=output)
-        print(f"Execution time: {end_time - start_time} s", file=output)
+            print(method, len(fas), file=out_file)
+        print(f"Execution time: {end_time - start_time} s", file=out_file)
 
 
 if __name__ == "__main__":
     args = argument_parser().parse_args()
-    if args.threads == 1:
+    if args.concurrent_threads == 1:
         for filename in expand_files(args.files):
             run_algorithm(
                 filename,
@@ -189,13 +181,12 @@ if __name__ == "__main__":
                 args.log,
                 args.smartAE,
                 args.reduce,
-                args.quick,
-                args.random_ordering,
-                args.greedy_orderings,
-                args.performance,
+                args.mode,
+                args.quality,
+                args.parallel_threads,
             )
     else:
-        with ProcessPoolExecutor(args.threads) as executor:
+        with ProcessPoolExecutor(args.concurrent_threads) as executor:
             executor.map(
                 run_algorithm,
                 expand_files(args.files),
@@ -203,8 +194,7 @@ if __name__ == "__main__":
                 itertools.repeat(args.log),
                 itertools.repeat(args.smartAE),
                 itertools.repeat(args.reduce),
-                itertools.repeat(args.quick),
-                itertools.repeat(args.random_ordering),
-                itertools.repeat(args.greedy_orderings),
-                itertools.repeat(args.performance),
+                itertools.repeat(args.mode),
+                itertools.repeat(args.quality),
+                itertools.repeat(args.parallel_threads),
             )

@@ -129,14 +129,19 @@ class NetworkitGraph(FASGraph):
         cc = StronglyConnectedComponents(self.graph)
         cc.run()
         for component_nodes in cc.getComponents():
-            subgraph = GraphTools.subgraphFromNodes(self.graph, component_nodes)
-            mapping = GraphTools.getContinuousNodeIds(subgraph)
-            compact_subgraph = GraphTools.getCompactedGraph(subgraph, mapping)
-            labels = len(mapping) * [""]
-            for orig, mapped in mapping.items():
-                labels[mapped] = self.node_labels[orig]
+            if len(component_nodes) >= 2:
+                subgraph = GraphTools.subgraphFromNodes(
+                    self.graph, component_nodes
+                )
+                mapping = GraphTools.getContinuousNodeIds(subgraph)
+                compact_subgraph = GraphTools.getCompactedGraph(
+                    subgraph, mapping
+                )
+                labels = len(mapping) * [""]
+                for orig, mapped in mapping.items():
+                    labels[mapped] = self.node_labels[orig]
 
-            yield self.__class__(compact_subgraph, node_labels=labels)
+                yield self.__class__(compact_subgraph, node_labels=labels)
 
     def is_acyclic(self) -> bool:
         if self.acyclic is not None:
