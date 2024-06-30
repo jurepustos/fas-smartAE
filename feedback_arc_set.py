@@ -183,10 +183,10 @@ def feedback_arc_set(
 
         fas_builder.merge(component_fas_builder)
 
-    if len(fas_builder.orderings) > 0:
+    ordering_names = fas_builder.get_ordering_names()
+    if len(ordering_names) > 0:
         instances = {
-            name: fas_builder.build_fas(name)
-            for name, ordering in fas_builder.orderings.items()
+            name: fas_builder.build_fas(name) for name in ordering_names
         }
     else:
         # all components have single edges
