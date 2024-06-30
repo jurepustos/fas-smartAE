@@ -148,6 +148,9 @@ def run_algorithm(
             graph, node_id_mapping = NetworkitGraph.load_from_edge_list(
                 filename
             )
+        
+        num_nodes = graph.get_num_nodes()
+        num_edges = graph.get_num_edges()
 
         print("Starting calculation of minFAS", file=log_file)
         start_time = time.time()
@@ -163,7 +166,7 @@ def run_algorithm(
         end_time = time.time()
 
         print(
-            f"V = {graph.get_num_nodes()}, E = {graph.get_num_edges()}",
+            f"V = {num_nodes}, E = {num_edges}",
             file=out_file,
         )
         for method, fas in fas_instances.items():

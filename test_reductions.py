@@ -20,7 +20,7 @@ class TestRemoveRuns(unittest.TestCase):
                 for i in range(0, n - 1):
                     nkgraph.addEdge(i, i + 1)
                 graph = NetworkitGraph(nkgraph)
-                graph.remove_runs()
+                merged_edges = graph.remove_runs()
                 self.assertEqual([(0, n - 1)], list(graph.graph.iterEdges()))
 
     def test_bypass(self):
@@ -46,29 +46,32 @@ class TestRemoveRuns(unittest.TestCase):
                     graph.remove_runs()
                     self.assertEqual([(0, k)], list(graph.graph.iterEdges()))
                     if k < n - 1:
-                        self.assertEqual(w1 + min(w2, w3), graph.graph.weight(0, k))
+                        self.assertEqual(
+                            w1 + min(w2, w3), graph.graph.weight(0, k)
+                        )
                     else:
                         self.assertEqual(w1 + w2, graph.graph.weight(0, k))
-    def test_cycle(self):
-            # before:
-            # 0 -> ... -> n - 1
-            # |             |
-            # \ <---------- /
-            # after:
-            # 0 <-> n - 1
 
-            for n in range(3, 10):
-                with self.subTest(n):
-                    nkgraph = nk.Graph(n, weighted=True, directed=True)
-                    for i in range(0, n - 1):
-                        nkgraph.addEdge(i, i + 1)
-                    nkgraph.addEdge(n - 1, 0)
-                    labels = list(range(0, n))
-                    graph = NetworkitGraph(nkgraph, node_labels=labels)
-                    graph.remove_runs()
-                    self.assertSetEqual(
-                        {(0, n - 1), (n - 1, 0)}, set(graph.graph.iterEdges())
-                    )
+    def test_cycle(self):
+        # before:
+        # 0 -> ... -> n - 1
+        # |             |
+        # \ <---------- /
+        # after:
+        # 0 <-> n - 1
+
+        for n in range(3, 10):
+            with self.subTest(n):
+                nkgraph = nk.Graph(n, weighted=True, directed=True)
+                for i in range(0, n - 1):
+                    nkgraph.addEdge(i, i + 1)
+                nkgraph.addEdge(n - 1, 0)
+                labels = list(range(0, n))
+                graph = NetworkitGraph(nkgraph, node_labels=labels)
+                graph.remove_runs()
+                self.assertSetEqual(
+                    {(0, n - 1), (n - 1, 0)}, set(graph.graph.iterEdges())
+                )
 
 
 class TestRemoveTwoCycles(unittest.TestCase):
@@ -115,7 +118,6 @@ class TestRemoveTwoCycles(unittest.TestCase):
                     else:
                         self.assertTrue(graph.graph.hasNode(n + 1))
                         self.assertEqual([], edges)
-
 
     def test_sink_node(self):
         # before:

@@ -287,7 +287,7 @@ class NetworkitGraph(FASGraph):
                 # Match node definition lines
                 node_match = re.match(r'\s*(\d+)\s*\[label="(\d+)"\];', line)
                 if node_match:
-                    node_id, node_label = map(int, node_match.groups())
+                    node_id, node_label = node_match.groups()
                     if node_id not in labels:
                         labels[node_id] = graph.addNode()
                     continue
@@ -298,7 +298,7 @@ class NetworkitGraph(FASGraph):
                     line,
                 )
                 if edge_match:
-                    source, target, weight, _ = map(int, edge_match.groups())
+                    source, target, weight, _ = edge_match.groups()
                     if source not in labels:
                         labels[source] = graph.addNode()
                     if target not in labels:
