@@ -4,7 +4,7 @@ from typing import Iterator
 
 from fas_graph import FASGraph
 from networkit_fas import NetworkitGraph
-from feedback_arc_set import reduce
+from feedback_arc_set import reduce_graph
 
 
 def expand_files(files: list[str]) -> Iterator[str]:
@@ -40,6 +40,6 @@ if __name__ == "__main__":
         graph, _labels = NetworkitGraph.load_from_adjacency_list(filename)
         print(f"{graph.get_num_nodes()} nodes, {graph.get_num_edges()} edges")
         print_scc_stats(graph)
-        reduce(graph)
+        reduce_graph(graph)
         print("After reduction:")
         print_scc_stats(graph)

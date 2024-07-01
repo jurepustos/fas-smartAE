@@ -11,6 +11,7 @@ from sortedcontainers import SortedList
 
 from fas_builder import FASBuilder, OrderingFASBuilder
 from fas_graph import FASGraph, Node
+import time
 
 
 class Mode(enum.Enum):
@@ -134,7 +135,7 @@ def print_output(
         print(*values, sep=sep, end=end, file=file, flush=flush)
 
 
-def reduce(graph: FASGraph) -> FASBuilder:
+def reduce_graph(graph: FASGraph) -> FASBuilder:
     fas_builder = FASBuilder(graph.get_node_labels())
     fas_builder.add_fas_edges(graph.remove_self_loops())
     num_nodes = None
@@ -172,8 +173,8 @@ def feedback_arc_set(
         if comp.get_num_nodes() >= 2
     ]
     print("Finished computing components", file=log_file)
-    comp_stop_time = time.time()
-    print(f"Component calculation time: {comp_end_time - comp_start_time} s", file=out_file)
+    comp_end_time = time.time()
+    print(f"Component calculation time: {comp_end_time - comp_start_time} s", file=log_file)
     del graph
     for i, component in enumerate(components):
         num_nodes = component.get_num_nodes()
