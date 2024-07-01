@@ -5,6 +5,7 @@ from typing import Iterable, Self
 from sortedcontainers import SortedList
 
 from fas_graph import Edge, Node
+from copy import deepcopy
 
 
 class OrderingFASBuilder:
@@ -26,9 +27,7 @@ class OrderingFASBuilder:
 class FASBuilder:
     def __init__(self, node_labels: list[str]):
         self.fas_edges: list[tuple[str, str]] = []
-        self.merged_edges: defaultdict[
-            tuple[str, str], list[tuple[str, str]]
-        ] = defaultdict(list)
+        self.merged_edges: dict[tuple[str, str], list[tuple[str, str]]] = {}
         self.node_labels = node_labels
         self.ordering_instances: defaultdict[str, list[tuple[str, str]]] = (
             defaultdict(list)
@@ -44,9 +43,14 @@ class FASBuilder:
 
     def add_merged_edges(self, merges: dict[Edge, list[Edge]]):
         for (u, v), merged_edges in merges.items():
-            self.merged_edges[self.node_labels[u], self.node_labels[v]].extend(
-                (self.node_labels[u], self.node_labels[v])
-                for u, v in merged_edges
+            u_label = self.node_labels[u]
+            v_label = self.node_labels[v]
+            if (u, v) not in self.merged_edges:
+                self.merged_edges[(u_label, v_label)] = [(u_label, v_label)]
+
+            self.merged_edges[(u_label, v_label)].extend(
+                (self.node_labels[x], self.node_labels[y])
+                for x, y in merged_edges
             )
 
     def add_ordering(self, name: str, ordering: OrderingFASBuilder):
@@ -59,7 +63,11 @@ class FASBuilder:
 
     def merge(self, other: Self):
         self.fas_edges.extend(other.fas_edges)
-        self.merged_edges.update(other.merged_edges)
+        for edge, merged_edges in other.merged_edges.items():
+            if edge in self.merged_edges:
+                self.merged_edges[edge].extend(merged_edges)
+            else:
+                self.merged_edges[edge] = merged_edges
         for name, ordering_fas in other.ordering_instances.items():
             self.ordering_instances[name].extend(ordering_fas)
 
@@ -67,13 +75,15 @@ class FASBuilder:
         instance = self.ordering_instances[name]
 
         fas = copy(self.fas_edges)
-        merged_edges = copy(self.merged_edges)
+        merged_edges = deepcopy(self.merged_edges)
         for u, v in instance:
+            if u == '3' and v == '2':
+                print(name, 'weird edge', merged_edges[(u, v)])
             # if the current edge is merged from reductions, unmerge it
             if (u, v) in merged_edges:
-                unmerged_u, unmerged_v = self.merged_edges[(u, v)].pop()
-                if len(self.merged_edges[(u, v)]) == 0:
-                    del self.merged_edges[(u, v)]
+                unmerged_u, unmerged_v = merged_edges[(u, v)].pop()
+                if len(merged_edges[(u, v)]) == 0:
+                    del merged_edges[(u, v)]
                 fas.append((unmerged_u, unmerged_v))
             else:
                 fas.append((u, v))
