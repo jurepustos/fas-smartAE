@@ -156,7 +156,7 @@ def feedback_arc_set(
             file=log_file,
         )
         if num_nodes >= 5000:
-            # to write to output with any kind of bigger component 
+            # to write to output with any kind of bigger component
             log_file.flush()
         component_fas_builder = FASBuilder(component.get_node_labels())
 
