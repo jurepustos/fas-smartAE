@@ -77,8 +77,6 @@ class FASBuilder:
         fas = copy(self.fas_edges)
         merged_edges = deepcopy(self.merged_edges)
         for u, v in instance:
-            if u == '3' and v == '2':
-                print(name, 'weird edge', merged_edges[(u, v)])
             # if the current edge is merged from reductions, unmerge it
             if (u, v) in merged_edges:
                 unmerged_u, unmerged_v = merged_edges[(u, v)].pop()

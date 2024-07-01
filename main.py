@@ -139,7 +139,7 @@ def run_algorithm(
         open_textIO(output_dir, f"{filename}.out", sys.stdout) as out_file,
         open_textIO(log_dir, f"{filename}.log", sys.stderr) as log_file,
     ):
-        print(f"Reading input file {filename}", file=log_file)
+        print(f"Reading input file {filename}")
         if args.format == "adjacency-list":
             graph, node_id_mapping = NetworkitGraph.load_from_adjacency_list(
                 filename

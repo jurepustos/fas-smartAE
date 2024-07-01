@@ -140,14 +140,14 @@ def feedback_arc_set(
         fas_builder.add_merged_edges(graph.remove_runs())
         fas_builder.add_fas_edges(graph.remove_2cycles())
 
-    print("Computing strongly connected components")
+    print("Computing strongly connected components", file=log_file)
     components = [
         comp
         for comp in graph.iter_strongly_connected_components()
         if comp.get_num_nodes() >= 2
     ]
     del graph
-    print("Finished computing strongly connected components")
+    print("Finished computing strongly connected components", file=log_file)
     for i, component in enumerate(components):
         num_nodes = component.get_num_nodes()
         num_edges = component.get_num_edges()
