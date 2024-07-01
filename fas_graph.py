@@ -39,7 +39,7 @@ class FASGraph(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def iter_strongly_connected_components(self) -> Iterator[Self]:
+    def iter_components(self) -> Iterator[Self]:
         raise NotImplementedError
 
     @abstractmethod
@@ -51,7 +51,7 @@ class FASGraph(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_self_loops(self) -> list[Node]:
+    def remove_self_loops(self) -> list[Edge]:
         raise NotImplementedError
 
     @abstractmethod

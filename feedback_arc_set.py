@@ -122,6 +122,31 @@ ORDERINGS = [
 ]
 
 
+def print_output(
+    graph: FASGraph,
+    *values: str,
+    sep: str | None = None,
+    end: str | None = None,
+    file: TextIO | None = None,
+    flush: bool = False,
+):
+    if graph.get_num_nodes() >= 1000:
+        print(*values, sep=sep, end=end, file=file, flush=flush)
+
+
+def reduce(graph: FASGraph) -> FASBuilder:
+    fas_builder = FASBuilder(graph.get_node_labels())
+    fas_builder.add_fas_edges(graph.remove_self_loops())
+    num_nodes = None
+    num_edges = None
+    while graph.get_num_nodes() != num_nodes and graph.get_num_edges() != num_edges:
+        fas_builder.add_merged_edges(graph.remove_runs())
+        fas_builder.add_fas_edges(graph.remove_2cycles())
+        num_nodes = graph.get_num_nodes()
+        num_edges = graph.get_num_edges()
+    return fas_builder
+
+
 def feedback_arc_set(
     graph: FASGraph,
     use_smartAE: bool = True,
@@ -137,21 +162,24 @@ def feedback_arc_set(
     """
     fas_builder = FASBuilder(graph.get_node_labels())
     if reduce:
-        fas_builder.add_merged_edges(graph.remove_runs())
-        fas_builder.add_fas_edges(graph.remove_2cycles())
+        reduce(graph)
 
-    print("Computing strongly connected components", file=log_file)
+    comp_start_time = time.time()
+    print("Computing components", file=log_file)
     components = [
         comp
-        for comp in graph.iter_strongly_connected_components()
+        for comp in graph.iter_components()
         if comp.get_num_nodes() >= 2
     ]
+    print("Finished computing components", file=log_file)
+    comp_stop_time = time.time()
+    print(f"Component calculation time: {comp_end_time - comp_start_time} s", file=out_file)
     del graph
-    print("Finished computing strongly connected components", file=log_file)
     for i, component in enumerate(components):
         num_nodes = component.get_num_nodes()
         num_edges = component.get_num_edges()
-        print(
+        print_output(
+            component,
             f"Component {i}: {num_nodes} nodes, {num_edges} edges",
             file=log_file,
         )
@@ -214,7 +242,7 @@ def fast_mode(
     nodes.sort(key=ordering.get_asc_sorter(graph), reverse=True)
     for direction in DIRECTIONS:
         name = f"{ordering}_desc_{direction}"
-        print(f"\tComputing {name}", file=log_file)
+        print_output(graph, f"\tComputing {name}", file=log_file)
         fas_builder.add_ordering(
             name,
             compute_fas(
@@ -225,7 +253,7 @@ def fast_mode(
                 quality=quality,
             ),
         )
-        print(f"\tFinished {name}", file=log_file)
+        print_output(graph, f"\tFinished {name}", file=log_file)
 
     return fas_builder
 
@@ -245,7 +273,7 @@ def normal_mode(
         nodes.sort(key=ordering.get_asc_sorter(graph))
         for direction in DIRECTIONS:
             name = f"{ordering}_asc_{direction}"
-            print(f"\tComputing {name}", file=log_file)
+            print_output(graph, f"\tComputing {name}", file=log_file)
             fas_builder.add_ordering(
                 name,
                 compute_fas(
@@ -256,12 +284,12 @@ def normal_mode(
                     quality=quality,
                 ),
             )
-            print(f"\tFinished {name}", file=log_file)
+            print_output(graph, f"\tFinished {name}", file=log_file)
 
         nodes.reverse()
         for direction in DIRECTIONS:
             name = f"{ordering}_desc_{direction}"
-            print(f"\tComputing {name}", file=log_file)
+            print_output(graph, f"\tComputing {name}", file=log_file)
             fas_builder.add_ordering(
                 name,
                 compute_fas(
@@ -272,12 +300,12 @@ def normal_mode(
                     quality=quality,
                 ),
             )
-            print(f"\tFinished {name}", file=log_file)
+            print_output(graph, f"\tFinished {name}", file=log_file)
 
     random.shuffle(nodes)
     for direction in DIRECTIONS:
         name = f"random_{direction}"
-        print(f"\tComputing {name}", file=log_file)
+        print_output(graph, f"\tComputing {name}", file=log_file)
         fas_builder.add_ordering(
             name,
             compute_fas(
@@ -288,7 +316,7 @@ def normal_mode(
                 quality=quality,
             ),
         )
-        print(f"\tFinished {name}", file=log_file)
+        print_output(graph, f"\tFinished {name}", file=log_file)
     return fas_builder
 
 
@@ -305,7 +333,7 @@ def parallel_mode(
     def finish_callback(name: str):
         def callback(future: Future[OrderingFASBuilder]):
             fas_builder.add_ordering(f"{name}", future.result())
-            print(f"\tFinished {name}", file=log_file)
+            print_output(graph, f"\tFinished {name}", file=log_file)
 
         return callback
 

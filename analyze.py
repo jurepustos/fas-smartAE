@@ -4,6 +4,7 @@ from typing import Iterator
 
 from fas_graph import FASGraph
 from networkit_fas import NetworkitGraph
+from feedback_arc_set import reduce
 
 
 def expand_files(files: list[str]) -> Iterator[str]:
@@ -22,7 +23,7 @@ def expand_files(files: list[str]) -> Iterator[str]:
 def print_scc_stats(graph: FASGraph):
     components = [
         comp
-        for comp in graph.iter_strongly_connected_components()
+        for comp in graph.iter_components()
         if comp.get_num_nodes() > 2
     ]
     print(f"SCC: {len(components)}")
@@ -39,7 +40,6 @@ if __name__ == "__main__":
         graph, _labels = NetworkitGraph.load_from_adjacency_list(filename)
         print(f"{graph.get_num_nodes()} nodes, {graph.get_num_edges()} edges")
         print_scc_stats(graph)
-        graph.remove_runs()
-        graph.remove_2cycles()
+        reduce(graph)
         print("After reduction:")
         print_scc_stats(graph)

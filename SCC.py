@@ -8,7 +8,7 @@ def compute_sccs_and_max_scc(graph: NetworkitGraph, reduce=True):
     initial_num_edges = graph.get_num_edges()
 
     # Compute initial SCCs
-    initial_sccs = list(graph.iter_strongly_connected_components())
+    initial_sccs = list(graph.iter_components())
     initial_max_scc_size = max(scc.get_num_nodes() for scc in initial_sccs) if initial_sccs else 0
     initial_num_sccs = len(initial_sccs)
 
@@ -24,7 +24,7 @@ def compute_sccs_and_max_scc(graph: NetworkitGraph, reduce=True):
         fas_builder.add_merged_edges(reduction_merged_edges)
 
     # Compute SCCs after reduction
-    reduced_sccs = list(graph.iter_strongly_connected_components())
+    reduced_sccs = list(graph.iter_components())
     reduced_max_scc_size = max(scc.get_num_nodes() for scc in reduced_sccs) if reduced_sccs else 0
     reduced_num_sccs = len(reduced_sccs)
 

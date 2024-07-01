@@ -3,7 +3,8 @@ from collections import defaultdict
 from copy import copy
 from typing import Iterator, Self
 
-from networkit.components import StronglyConnectedComponents
+from networkit.components import (BiconnectedComponents,
+                                  StronglyConnectedComponents)
 from networkit.graph import Graph
 from networkit.graphtools import GraphTools
 
@@ -15,10 +16,10 @@ class NetworkitGraph(FASGraph):
         self,
         networkit_graph: Graph,
         node_labels: list[str] | None = None,
-        self_loops: list[Node] | None = None,
+        self_loops: list[Edge] | None = None
     ):
         self.graph = networkit_graph
-        self.self_loops = self_loops if self_loops is not None else []
+        self.self_loops = self_loops
         self.node_labels = (
             node_labels
             if node_labels is not None
@@ -55,8 +56,8 @@ class NetworkitGraph(FASGraph):
     def iter_in_neighbors(self, node: Node) -> Iterator[Node]:
         return self.graph.iterInNeighbors(node)
 
-    def get_self_loops(self) -> list[Node]:
-        return self.self_loops
+    def remove_self_loops(self) -> list[Edge]: 
+        return self.self_loops if self.self_loops is not None else []
 
     def remove_runs(self) -> dict[Edge, list[Edge]]:
         merged_edges: defaultdict[Edge, list[Edge]] = defaultdict(list)
@@ -122,26 +123,50 @@ class NetworkitGraph(FASGraph):
 
         return FAS
 
-    def iter_strongly_connected_components(self) -> Iterator[Self]:
+    def iter_components(self) -> Iterator[Self]:
         """
         Returns a list of strongly connected components
         """
-        cc = StronglyConnectedComponents(self.graph)
-        cc.run()
-        for component_nodes in cc.getComponents():
-            if len(component_nodes) >= 2:
-                subgraph = GraphTools.subgraphFromNodes(
+        scc = StronglyConnectedComponents(self.graph)
+        scc.run()
+        for component_nodes in scc.getComponents():
+            if len(component_nodes) == 2:
+                component = GraphTools.subgraphFromNodes(
                     self.graph, component_nodes
                 )
-                mapping = GraphTools.getContinuousNodeIds(subgraph)
-                compact_subgraph = GraphTools.getCompactedGraph(
-                    subgraph, mapping
+                component = GraphTools.subgraphFromNodes(self.graph, component_nodes)
+                mapping = GraphTools.getContinuousNodeIds(component)
+                compact_component = GraphTools.getCompactedGraph(component, mapping)
+                labels = len(mapping) * [""]
+                for orig, mapped in mapping.items():
+                    labels[mapped] = self.node_labels[orig]
+
+                yield self.__class__(compact_component, node_labels=labels)
+            elif len(component_nodes) >= 3:
+                component = GraphTools.subgraphFromNodes(
+                    self.graph, component_nodes
+                )
+                for bcc in self.iter_biconnected_components_of(component):
+                    yield bcc
+
+    def iter_biconnected_components_of(self, subgraph: Graph) -> Iterator[Self]:
+        undirected_subgraph = GraphTools.toUndirected(subgraph)
+        bcc = BiconnectedComponents(undirected_subgraph)
+        bcc.run()
+        for component_nodes in bcc.getComponents():
+            if len(component_nodes) >= 2:
+                component = GraphTools.subgraphFromNodes(
+                    subgraph, component_nodes
+                )
+                mapping = GraphTools.getContinuousNodeIds(component)
+                compact_component = GraphTools.getCompactedGraph(
+                    component, mapping
                 )
                 labels = len(mapping) * [""]
                 for orig, mapped in mapping.items():
                     labels[mapped] = self.node_labels[orig]
 
-                yield self.__class__(compact_subgraph, node_labels=labels)
+                yield self.__class__(compact_component, node_labels=labels)
 
     def is_acyclic(self) -> bool:
         if self.acyclic is not None:
@@ -305,7 +330,8 @@ class NetworkitGraph(FASGraph):
                         labels[target] = graph.addNode()
                     if source == target:
                         self_loops.append(labels[source])
-                    graph.increaseWeight(labels[source], labels[target], weight)
+                    else:
+                        graph.increaseWeight(labels[source], labels[target], weight)
 
         inverse_labels = ["" for _ in range(graph.numberOfNodes())]
         for label, node in labels.items():
@@ -342,14 +368,15 @@ class NetworkitGraph(FASGraph):
                         labels[target] = graph.addNode()
                     if target == source:
                         self_loops.append(labels[source])
-                    graph.increaseWeight(labels[source], labels[target], 1)
+                    else:
+                        graph.increaseWeight(labels[source], labels[target], 1)
 
         inverse_labels: list[str] = graph.numberOfNodes() * [""]
         for label, node in labels.items():
             inverse_labels[node] = label
 
         return cls(
-            graph, node_labels=inverse_labels, self_loops=self_loops
+            graph, node_labels=inverse_labels
         ), labels
 
     def __copy__(self):
