@@ -65,15 +65,8 @@ def argument_parser() -> argparse.ArgumentParser:
         action="store",
         choices=list(Mode),
         type=Mode.from_str,
-        default="normal",
-        help="chooses the algorithm running mode (default normal)",
-    )
-    parser.add_argument(
-        "-q",
-        "--quality",
-        action="store_true",
-        default=False,
-        help="makes the algorithm slower, but produces better results",
+        default="fast",
+        help="chooses the algorithm running mode (default fast)",
     )
     parser.add_argument(
         "-c",
@@ -91,7 +84,7 @@ def argument_parser() -> argparse.ArgumentParser:
         dest="parallel_threads",
         type=int,
         default=1,
-        help="set the number of threads to use for each instance (only with -m parallel, default 1)",
+        help="set the number of threads to use (default 1)",
     )
     parser.add_argument(
         "-o",
@@ -132,7 +125,6 @@ def run_algorithm(
     use_smartAE: bool,
     reduce: bool,
     mode: Mode,
-    quality: bool,
     threads: int,
 ):
     with (
@@ -163,7 +155,6 @@ def run_algorithm(
             use_smartAE=use_smartAE,
             reduce=reduce,
             mode=mode,
-            quality=quality,
             log_file=log_file,
             threads=threads,
         )
@@ -193,7 +184,6 @@ if __name__ == "__main__":
                 args.smartAE,
                 args.reduce,
                 args.mode,
-                args.quality,
                 args.parallel_threads,
             )
     else:
@@ -206,6 +196,5 @@ if __name__ == "__main__":
                 itertools.repeat(args.smartAE),
                 itertools.repeat(args.reduce),
                 itertools.repeat(args.mode),
-                itertools.repeat(args.quality),
                 itertools.repeat(args.parallel_threads),
             )

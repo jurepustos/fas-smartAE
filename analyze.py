@@ -3,8 +3,8 @@ import sys
 from typing import Iterator
 
 from fas_graph import FASGraph
-from networkit_fas import NetworkitGraph
 from feedback_arc_set import reduce_graph
+from networkit_fas import NetworkitGraph
 
 
 def expand_files(files: list[str]) -> Iterator[str]:
@@ -22,9 +22,7 @@ def expand_files(files: list[str]) -> Iterator[str]:
 
 def print_scc_stats(graph: FASGraph):
     components = [
-        comp
-        for comp in graph.iter_components()
-        if comp.get_num_nodes() > 2
+        comp for comp in graph.iter_components() if comp.get_num_nodes() > 2
     ]
     print(f"SCC: {len(components)}")
     num_nodes_sorter = graph.__class__.get_num_nodes

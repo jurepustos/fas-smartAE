@@ -2,11 +2,10 @@ import enum
 import random
 import sys
 import time
-from concurrent.futures import Future
+from concurrent.futures import Executor, Future
 from concurrent.futures.process import ProcessPoolExecutor
 from copy import copy
-from queue import SimpleQueue
-from typing import Callable, TextIO
+from typing import Callable, Iterator, TextIO
 
 from sortedcontainers import SortedList
 
@@ -16,28 +15,23 @@ from fas_graph import FASGraph, Node
 
 class Mode(enum.Enum):
     FAST = enum.auto()
-    NORMAL = enum.auto()
-    PARALLEL = enum.auto()
+    QUALITY = enum.auto()
 
     def __str__(self):
         match self:
             case Mode.FAST:
                 return "fast"
-            case Mode.NORMAL:
-                return "normal"
-            case Mode.PARALLEL:
-                return "parallel"
+            case Mode.QUALITY:
+                return "quality"
 
     @classmethod
     def from_str(self, string: str):
         match string:
             case "fast":
                 return Mode.FAST
-            case "normal":
-                return Mode.NORMAL
-            case "parallel":
-                return Mode.PARALLEL
-        raise AssertionError("Valid modes are fast, normal and parallel")
+            case "quality":
+                return Mode.QUALITY
+        raise AssertionError("Valid modes are fast and quality")
 
 
 class Direction(enum.Enum):
@@ -155,8 +149,7 @@ def feedback_arc_set(
     graph: FASGraph,
     use_smartAE: bool = True,
     reduce: bool = True,
-    mode: Mode = Mode.NORMAL,
-    quality: bool = False,
+    mode: Mode = Mode.FAST,
     threads: int = 1,
     log_file: TextIO = sys.stderr,
 ) -> dict[str, list[tuple[str, str]]]:
@@ -166,65 +159,30 @@ def feedback_arc_set(
     """
     fas_builder = FASBuilder(graph.get_node_labels())
     if reduce:
-        reduce_graph(graph)
+        fas_builder.merge(reduce_graph(graph))
 
-    comp_start_time = time.time()
-    print("Computing components", file=log_file)
-    components = [
+    components_iter = (
         comp for comp in graph.iter_components() if comp.get_num_nodes() >= 2
-    ]
-    print("Finished computing components", file=log_file)
-    comp_end_time = time.time()
-    print(
-        f"Component calculation time: {comp_end_time - comp_start_time} s",
-        file=log_file,
-        flush=True
     )
-    del graph
-    for i, component in enumerate(components):
-        num_nodes = component.get_num_nodes()
-        num_edges = component.get_num_edges()
-        print_output(
-            component,
-            f"Component {i}: {num_nodes} nodes, {num_edges} edges",
-            file=log_file,
+    if threads > 1:
+        component_builders = parallel_components(
+            components_iter,
+            threads,
+            use_smartAE=use_smartAE,
+            log_file=log_file,
+            mode=mode,
         )
-        if num_nodes >= 1000:
-            # to write to output with any kind of bigger component
-            log_file.flush()
-        component_fas_builder = FASBuilder(component.get_node_labels())
-
-        match mode:
-            case Mode.FAST:
-                component_fas_builder = fast_mode(
-                    component,
-                    use_smartAE=use_smartAE,
-                    reduce=reduce,
-                    quality=quality,
-                    log_file=log_file,
-                )
-            case Mode.NORMAL:
-                component_fas_builder = normal_mode(
-                    component,
-                    use_smartAE=use_smartAE,
-                    reduce=reduce,
-                    quality=quality,
-                    log_file=log_file,
-                )
-            case Mode.PARALLEL:
-                component_fas_builder = parallel_mode(
-                    component,
-                    use_smartAE=use_smartAE,
-                    reduce=reduce,
-                    threads=threads,
-                    quality=quality,
-                    log_file=log_file,
-                )
-
-        fas_builder.merge(component_fas_builder)
-        if num_nodes >= 1000:
-            # to write to output with any kind of bigger component
-            log_file.flush()
+        for builder in component_builders:
+            fas_builder.merge(builder)
+    else:
+        component_builders = sequential_components(
+            components_iter,
+            use_smartAE=use_smartAE,
+            log_file=log_file,
+            mode=mode,
+        )
+        for builder in component_builders:
+            fas_builder.merge(builder)
 
     ordering_names = fas_builder.get_ordering_names()
     if len(ordering_names) > 0:
@@ -238,51 +196,65 @@ def feedback_arc_set(
     return instances
 
 
-def fast_mode(
-    graph: FASGraph,
-    use_smartAE: bool = True,
-    reduce: bool = True,
-    quality: bool = False,
-    log_file: TextIO = sys.stderr,
-) -> FASBuilder:
-    fas_builder = FASBuilder(graph.get_node_labels())
-    ordering = Ordering.OUT_DEGREE
-    nodes = graph.get_nodes()
-    nodes.sort(key=ordering.get_asc_sorter(graph), reverse=True)
-    for direction in DIRECTIONS:
-        name = f"{ordering}_desc_{direction}"
-        print_output(graph, f"\tComputing {name}", file=log_file)
-        fas_builder.add_ordering(
-            name,
-            compute_fas(
-                copy(graph),
-                nodes,
-                direction,
-                use_smartAE=use_smartAE,
-                quality=quality,
-            ),
+def sequential_components(
+    it_components: Iterator[FASGraph],
+    use_smartAE: bool,
+    log_file: TextIO,
+    mode: Mode,
+) -> list[FASBuilder]:
+    comp_start_time = time.time()
+    print("Computing components", file=log_file)
+    components = list(it_components)
+    print("Finished computing components", file=log_file)
+    comp_end_time = time.time()
+    print(
+        f"Component calculation time: {comp_end_time - comp_start_time} s",
+        file=log_file,
+        flush=True,
+    )
+
+    component_builders: list[FASBuilder] = []
+    for i, component in enumerate(components):
+        num_nodes = component.get_num_nodes()
+        num_edges = component.get_num_edges()
+        print_output(
+            component,
+            f"Component {i}: {num_nodes} nodes, {num_edges} edges",
+            file=log_file,
+            flush=True,
         )
-        print_output(graph, f"\tFinished {name}", file=log_file)
 
-    return fas_builder
+        component_builders.append(
+            sequential_orderings(
+                component,
+                use_smartAE=use_smartAE,
+                log_file=log_file,
+                mode=mode,
+            )
+        )
+        if num_nodes >= 1000:
+            # to write to output with any kind of bigger component
+            log_file.flush()
+
+    return component_builders
 
 
-def normal_mode(
+def sequential_orderings(
     graph: FASGraph,
-    use_smartAE: bool = True,
-    reduce: bool = True,
-    quick: bool = False,
-    quality: bool = False,
-    log_file: TextIO = sys.stderr,
+    use_smartAE: bool,
+    log_file: TextIO,
+    mode: Mode,
 ) -> FASBuilder:
     fas_builder = FASBuilder(graph.get_node_labels())
 
+    nodes = graph.get_nodes()
     for ordering in ORDERINGS:
-        nodes = graph.get_nodes()
         nodes.sort(key=ordering.get_asc_sorter(graph))
         for direction in DIRECTIONS:
             name = f"{ordering}_asc_{direction}"
-            print_output(graph, f"\tComputing {name}", file=log_file)
+            print_output(
+                graph, f"\tComputing {name}", file=log_file, flush=True
+            )
             fas_builder.add_ordering(
                 name,
                 compute_fas(
@@ -290,7 +262,7 @@ def normal_mode(
                     nodes,
                     direction,
                     use_smartAE=use_smartAE,
-                    quality=quality,
+                    mode=mode,
                 ),
             )
             print_output(graph, f"\tFinished {name}", file=log_file)
@@ -298,7 +270,9 @@ def normal_mode(
         nodes.reverse()
         for direction in DIRECTIONS:
             name = f"{ordering}_desc_{direction}"
-            print_output(graph, f"\tComputing {name}", file=log_file)
+            print_output(
+                graph, f"\tComputing {name}", file=log_file, flush=True
+            )
             fas_builder.add_ordering(
                 name,
                 compute_fas(
@@ -306,7 +280,7 @@ def normal_mode(
                     nodes,
                     direction,
                     use_smartAE=use_smartAE,
-                    quality=quality,
+                    mode=mode,
                 ),
             )
             print_output(graph, f"\tFinished {name}", file=log_file)
@@ -314,7 +288,7 @@ def normal_mode(
     random.shuffle(nodes)
     for direction in DIRECTIONS:
         name = f"random_{direction}"
-        print_output(graph, f"\tComputing {name}", file=log_file)
+        print_output(graph, f"\tComputing {name}", file=log_file, flush=True)
         fas_builder.add_ordering(
             name,
             compute_fas(
@@ -322,74 +296,112 @@ def normal_mode(
                 nodes,
                 direction,
                 use_smartAE=use_smartAE,
-                quality=quality,
+                mode=mode,
             ),
         )
         print_output(graph, f"\tFinished {name}", file=log_file)
     return fas_builder
 
 
-def parallel_mode(
+def parallel_components(
+    it_components: Iterator[FASGraph],
+    threads: int,
+    use_smartAE: bool,
+    log_file: TextIO,
+    mode: Mode,
+) -> list[FASBuilder]:
+    component_builders: list[FASBuilder] = []
+    with ProcessPoolExecutor(max_workers=threads) as executor:
+        for i, component in enumerate(it_components):
+            num_nodes = component.get_num_nodes()
+            num_edges = component.get_num_edges()
+            print_output(
+                component,
+                f"Component {i}: {num_nodes} nodes, {num_edges} edges",
+                file=log_file,
+                flush=True
+            )
+
+            if num_edges >= 1000:
+                component_builders.append(
+                    parallel_orderings(
+                        component,
+                        executor,
+                        use_smartAE=use_smartAE,
+                        log_file=log_file,
+                        mode=mode,
+                    )
+                )
+            else:
+                component_builders.append(
+                    sequential_orderings(
+                        component,
+                        use_smartAE=use_smartAE,
+                        log_file=log_file,
+                        mode=mode,
+                    )
+                )
+
+    return component_builders
+
+
+def finish_callback(name: str, fas_builder: FASBuilder):
+    def callback(future: Future[OrderingFASBuilder]):
+        fas_builder.add_ordering(f"{name}", future.result())
+
+    return callback
+
+
+def parallel_orderings(
     graph: FASGraph,
-    use_smartAE: bool = True,
-    reduce: bool = True,
-    threads: int = 1,
-    quality: bool = False,
-    log_file: TextIO = sys.stderr,
+    executor: Executor,
+    use_smartAE: bool,
+    log_file: TextIO,
+    mode: Mode,
 ) -> FASBuilder:
     fas_builder = FASBuilder(graph.get_node_labels())
 
-    def finish_callback(name: str):
-        def callback(future: Future[OrderingFASBuilder]):
-            fas_builder.add_ordering(f"{name}", future.result())
-            print_output(graph, f"\tFinished {name}", file=log_file)
-
-        return callback
-
     name = ""
-    with ProcessPoolExecutor(
-        max_workers=threads,
-    ) as executor:
-        for ordering in ORDERINGS:
-            nodes = graph.get_nodes()
-            nodes.sort(key=ordering.get_asc_sorter(graph))
-            for direction in DIRECTIONS:
-                name = f"{ordering}_asc_{direction}"
-                future = executor.submit(
-                    compute_fas,
-                    copy(graph),
-                    nodes,
-                    direction,
-                    use_smartAE=use_smartAE,
-                    quality=quality,
-                )
-                future.add_done_callback(finish_callback(f"{name}"))
-
-            nodes.reverse()
-            for direction in DIRECTIONS:
-                name = f"{ordering}_desc_{direction}"
-                future = executor.submit(
-                    compute_fas,
-                    copy(graph),
-                    nodes,
-                    direction,
-                    use_smartAE=use_smartAE,
-                    quality=quality,
-                )
-                future.add_done_callback(finish_callback(f"{name}"))
-
-        random.shuffle(nodes)
+    nodes = graph.get_nodes()
+    for ordering in ORDERINGS:
+        nodes.sort(key=ordering.get_asc_sorter(graph))
         for direction in DIRECTIONS:
-            name = f"random_{direction}"
+            name = f"{ordering}_asc_{direction}"
             future = executor.submit(
                 compute_fas,
                 copy(graph),
                 nodes,
                 direction,
                 use_smartAE=use_smartAE,
-                quality=quality,
+                mode=mode,
             )
-            future.add_done_callback(finish_callback(f"{name}"))
+            future.add_done_callback(finish_callback(f"{name}", fas_builder))
+
+        nodes.reverse()
+        for direction in DIRECTIONS:
+            name = f"{ordering}_desc_{direction}"
+            future = executor.submit(
+                compute_fas,
+                copy(graph),
+                nodes,
+                direction,
+                use_smartAE=use_smartAE,
+                mode=mode,
+            )
+            future.add_done_callback(finish_callback(f"{name}", fas_builder))
+
+    random.shuffle(nodes)
+    for direction in DIRECTIONS:
+        name = f"random_{direction}"
+        future = executor.submit(
+            compute_fas,
+            copy(graph),
+            nodes,
+            direction,
+            use_smartAE=use_smartAE,
+            mode=mode,
+        )
+        future.add_done_callback(finish_callback(f"{name}", fas_builder))
 
     return fas_builder
 
@@ -398,8 +410,8 @@ def compute_fas(
     graph: FASGraph,
     ordering: list[int],
     direction: Direction,
-    use_smartAE: bool = True,
-    quality: bool = False,
+    use_smartAE: bool,
+    mode: Mode,
 ) -> OrderingFASBuilder:
     """
     Computes a minimal FAS for the given graph and node ordering.
@@ -407,7 +419,7 @@ def compute_fas(
     builder = OrderingFASBuilder()
 
     edges = remove_direction_edges(
-        graph, ordering, direction=direction, quality=quality
+        graph, ordering, direction=direction, mode=mode
     )
 
     builder.add_removed_edges(edges)
@@ -423,25 +435,26 @@ def remove_direction_edges(
     graph: FASGraph,
     ordering: list[int],
     direction: Direction,
-    quality: bool = False,
+    mode: Mode,
 ) -> list[tuple[int, int]]:
     direction_edges = []
     for i in range(len(ordering)):
         edges = get_direction_edges_from(graph, ordering, i, direction)
-        if quality:
-            for source, target in edges:
-                edges_to_remove = []
-                if not graph.edge_between_components(source, target):
-                    edges_to_remove.append((source, target))
-                graph.remove_edges(edges_to_remove)
-                direction_edges.extend(edges_to_remove)
-            if graph.is_acyclic():
-                break
-        else:
-            graph.remove_edges(edges)
-            direction_edges.extend(edges)
-            if graph.is_acyclic():
-                break
+        match mode:
+            case Mode.QUALITY:
+                for source, target in edges:
+                    edges_to_remove = []
+                    if not graph.edge_between_components(source, target):
+                        edges_to_remove.append((source, target))
+                    graph.remove_edges(edges_to_remove)
+                    direction_edges.extend(edges_to_remove)
+                if graph.is_acyclic():
+                    break
+            case Mode.FAST:
+                graph.remove_edges(edges)
+                direction_edges.extend(edges)
+                if graph.is_acyclic():
+                    break
 
     return direction_edges
 
