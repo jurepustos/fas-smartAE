@@ -1,6 +1,7 @@
 import enum
 import random
 import sys
+import time
 from concurrent.futures import Future
 from concurrent.futures.process import ProcessPoolExecutor
 from copy import copy
@@ -11,7 +12,6 @@ from sortedcontainers import SortedList
 
 from fas_builder import FASBuilder, OrderingFASBuilder
 from fas_graph import FASGraph, Node
-import time
 
 
 class Mode(enum.Enum):
@@ -140,11 +140,14 @@ def reduce_graph(graph: FASGraph) -> FASBuilder:
     fas_builder.add_fas_edges(graph.remove_self_loops())
     num_nodes = None
     num_edges = None
-    while graph.get_num_nodes() != num_nodes and graph.get_num_edges() != num_edges:
-        fas_builder.add_merged_edges(graph.remove_runs())
-        fas_builder.add_fas_edges(graph.remove_2cycles())
+    while (
+        graph.get_num_nodes() != num_nodes
+        and graph.get_num_edges() != num_edges
+    ):
         num_nodes = graph.get_num_nodes()
         num_edges = graph.get_num_edges()
+        fas_builder.add_merged_edges(graph.remove_runs())
+        fas_builder.add_fas_edges(graph.remove_2cycles())
     return fas_builder
 
 
@@ -163,18 +166,20 @@ def feedback_arc_set(
     """
     fas_builder = FASBuilder(graph.get_node_labels())
     if reduce:
-        reduce(graph)
+        reduce_graph(graph)
 
     comp_start_time = time.time()
     print("Computing components", file=log_file)
     components = [
-        comp
-        for comp in graph.iter_components()
-        if comp.get_num_nodes() >= 2
+        comp for comp in graph.iter_components() if comp.get_num_nodes() >= 2
     ]
     print("Finished computing components", file=log_file)
     comp_end_time = time.time()
-    print(f"Component calculation time: {comp_end_time - comp_start_time} s", file=log_file)
+    print(
+        f"Component calculation time: {comp_end_time - comp_start_time} s",
+        file=log_file,
+        flush=True
+    )
     del graph
     for i, component in enumerate(components):
         num_nodes = component.get_num_nodes()
@@ -184,7 +189,7 @@ def feedback_arc_set(
             f"Component {i}: {num_nodes} nodes, {num_edges} edges",
             file=log_file,
         )
-        if num_nodes >= 5000:
+        if num_nodes >= 1000:
             # to write to output with any kind of bigger component
             log_file.flush()
         component_fas_builder = FASBuilder(component.get_node_labels())
@@ -217,6 +222,9 @@ def feedback_arc_set(
                 )
 
         fas_builder.merge(component_fas_builder)
+        if num_nodes >= 1000:
+            # to write to output with any kind of bigger component
+            log_file.flush()
 
     ordering_names = fas_builder.get_ordering_names()
     if len(ordering_names) > 0:

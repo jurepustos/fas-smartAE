@@ -139,7 +139,7 @@ def run_algorithm(
         open_textIO(output_dir, f"{filename}.out", sys.stdout) as out_file,
         open_textIO(log_dir, f"{filename}.log", sys.stderr) as log_file,
     ):
-        print(f"Reading input file {filename}")
+        print(f"Reading input file {filename}", flush=True)
         if args.format == "adjacency-list":
             graph, node_id_mapping = NetworkitGraph.load_from_adjacency_list(
                 filename
@@ -148,7 +148,11 @@ def run_algorithm(
             graph, node_id_mapping = NetworkitGraph.load_from_edge_list(
                 filename
             )
-        
+
+        num_nodes = graph.get_num_nodes()
+        num_edges = graph.get_num_edges()
+        num_nodes = graph.get_num_nodes()
+        num_edges = graph.get_num_edges()
         num_nodes = graph.get_num_nodes()
         num_edges = graph.get_num_edges()
 
@@ -171,7 +175,11 @@ def run_algorithm(
         )
         for method, fas in fas_instances.items():
             print(method, len(fas), file=out_file)
+        best_fas = min(fas_instances.items(), key=lambda pair: len(pair[1]))
+        print(f"Best result: {best_fas[0]} {len(best_fas[1])}")
         print(f"Execution time: {end_time - start_time} s", file=out_file)
+        out_file.flush()
+        log_file.flush()
 
 
 if __name__ == "__main__":
