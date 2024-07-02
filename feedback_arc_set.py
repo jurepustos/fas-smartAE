@@ -261,7 +261,7 @@ def sequential_orderings(
                 name,
                 compute_fas(
                     copy(graph),
-                    nodes,
+                    copy(nodes),
                     direction,
                     use_smartAE=use_smartAE,
                     mode=mode,
@@ -279,7 +279,7 @@ def sequential_orderings(
                 name,
                 compute_fas(
                     copy(graph),
-                    nodes,
+                    copy(nodes),
                     direction,
                     use_smartAE=use_smartAE,
                     mode=mode,
@@ -295,7 +295,7 @@ def sequential_orderings(
             name,
             compute_fas(
                 copy(graph),
-                nodes,
+                copy(nodes),
                 direction,
                 use_smartAE=use_smartAE,
                 mode=mode,
