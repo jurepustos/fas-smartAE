@@ -11,6 +11,8 @@ from sortedcontainers import SortedList
 
 from fas_builder import FASBuilder, OrderingFASBuilder
 from fas_graph import FASGraph, Node
+from concurrent.futures.thread import ThreadPoolExecutor
+from copy import deepcopy
 
 
 class Mode(enum.Enum):
@@ -325,7 +327,7 @@ def parallel_components(
             if num_edges >= 1000:
                 component_builders.append(
                     parallel_orderings(
-                        component,
+                        copy(component),
                         executor,
                         use_smartAE=use_smartAE,
                         log_file=log_file,
@@ -370,7 +372,7 @@ def parallel_orderings(
             future = executor.submit(
                 compute_fas,
                 copy(graph),
-                nodes,
+                copy(nodes),
                 direction,
                 use_smartAE=use_smartAE,
                 mode=mode,
@@ -383,7 +385,7 @@ def parallel_orderings(
             future = executor.submit(
                 compute_fas,
                 copy(graph),
-                nodes,
+                copy(nodes),
                 direction,
                 use_smartAE=use_smartAE,
                 mode=mode,
@@ -396,7 +398,7 @@ def parallel_orderings(
         future = executor.submit(
             compute_fas,
             copy(graph),
-            nodes,
+            copy(nodes),
             direction,
             use_smartAE=use_smartAE,
             mode=mode,

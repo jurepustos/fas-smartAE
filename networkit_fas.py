@@ -16,7 +16,7 @@ class NetworkitGraph(FASGraph):
         self,
         networkit_graph: Graph,
         node_labels: list[str] | None = None,
-        self_loops: list[Edge] | None = None
+        self_loops: list[Edge] | None = None,
     ):
         self.graph = networkit_graph
         self.self_loops = self_loops
@@ -56,7 +56,7 @@ class NetworkitGraph(FASGraph):
     def iter_in_neighbors(self, node: Node) -> Iterator[Node]:
         return self.graph.iterInNeighbors(node)
 
-    def remove_self_loops(self) -> list[Edge]: 
+    def remove_self_loops(self) -> list[Edge]:
         return self.self_loops if self.self_loops is not None else []
 
     def remove_runs(self) -> dict[Edge, list[Edge]]:
@@ -130,13 +130,14 @@ class NetworkitGraph(FASGraph):
         scc = StronglyConnectedComponents(self.graph)
         scc.run()
         for component_nodes in scc.getComponents():
-            if len(component_nodes) == 2:
+            if len(component_nodes) >= 2:
                 component = GraphTools.subgraphFromNodes(
                     self.graph, component_nodes
                 )
-                component = GraphTools.subgraphFromNodes(self.graph, component_nodes)
                 mapping = GraphTools.getContinuousNodeIds(component)
-                compact_component = GraphTools.getCompactedGraph(component, mapping)
+                compact_component = GraphTools.getCompactedGraph(
+                    component, mapping
+                )
                 labels = len(mapping) * [""]
                 for orig, mapped in mapping.items():
                     labels[mapped] = self.node_labels[orig]
@@ -154,7 +155,7 @@ class NetworkitGraph(FASGraph):
         bcc = BiconnectedComponents(undirected_subgraph)
         bcc.run()
         for component_nodes in bcc.getComponents():
-            if len(component_nodes) >= 2:
+            if len(component_nodes) == 2:
                 component = GraphTools.subgraphFromNodes(
                     subgraph, component_nodes
                 )
@@ -261,7 +262,7 @@ class NetworkitGraph(FASGraph):
         """
         graph = Graph(weighted=True, directed=True)
         labels: dict[str, Node] = {}
-        self_loops: list[Node] = []
+        self_loops: list[Edge] = []
 
         with open(filename, "r") as file:
             for line in file:
@@ -279,7 +280,7 @@ class NetworkitGraph(FASGraph):
                 if target not in labels:
                     labels[target] = graph.addNode()
                 if target == source:
-                    self_loops.append(labels[source])
+                    self_loops.append((labels[source], labels[source]))
                 graph.increaseWeight(labels[source], labels[target], 1)
 
         inverse_labels: list[str] = graph.numberOfNodes() * [""]
@@ -294,7 +295,7 @@ class NetworkitGraph(FASGraph):
     def load_from_dot(cls, filename: str):
         graph = Graph(directed=True, weighted=True)
         labels: dict[str, Node] = {}
-        self_loops: list[Node] = []
+        self_loops: list[Edge] = []
 
         with open(filename, "r") as file:
             for line in file:
@@ -329,9 +330,11 @@ class NetworkitGraph(FASGraph):
                     if target not in labels:
                         labels[target] = graph.addNode()
                     if source == target:
-                        self_loops.append(labels[source])
+                        self_loops.append((labels[source], labels[source]))
                     else:
-                        graph.increaseWeight(labels[source], labels[target], weight)
+                        graph.increaseWeight(
+                            labels[source], labels[target], weight
+                        )
 
         inverse_labels = ["" for _ in range(graph.numberOfNodes())]
         for label, node in labels.items():
@@ -350,7 +353,7 @@ class NetworkitGraph(FASGraph):
         """
         graph = Graph(directed=True, weighted=True)
         labels: dict[str, Node] = {}
-        self_loops: list[Node] = []
+        self_loops: list[Edge] = []
 
         with open(filename, "r") as file:
             for line in file:
@@ -367,7 +370,7 @@ class NetworkitGraph(FASGraph):
                     if target not in labels:
                         labels[target] = graph.addNode()
                     if target == source:
-                        self_loops.append(labels[source])
+                        self_loops.append((labels[source], labels[source]))
                     else:
                         graph.increaseWeight(labels[source], labels[target], 1)
 
@@ -376,7 +379,7 @@ class NetworkitGraph(FASGraph):
             inverse_labels[node] = label
 
         return cls(
-            graph, node_labels=inverse_labels
+            graph, node_labels=inverse_labels, self_loops=self_loops
         ), labels
 
     def __copy__(self):
@@ -384,6 +387,10 @@ class NetworkitGraph(FASGraph):
             copy(self.graph),
             node_labels=copy(self.node_labels),
         )
+        copied_graph.acyclic = copy(self.acyclic)
+        copied_graph.added_backward_edge = copy(self.added_backward_edge)
         copied_graph.topological_sort = copy(self.topological_sort)
         copied_graph.inv_topological_sort = copy(self.inv_topological_sort)
+        copied_graph.prev_topological_sort = copy(self.prev_topological_sort)
+        copied_graph.prev_inv_topological_sort = copy(self.prev_inv_topological_sort)
         return copied_graph
