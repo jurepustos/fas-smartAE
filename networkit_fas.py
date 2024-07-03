@@ -59,13 +59,14 @@ class NetworkitGraph(FASGraph):
     def remove_self_loops(self) -> list[Edge]:
         return self.self_loops if self.self_loops is not None else []
 
-    def remove_runs(self) -> dict[Edge, list[Edge]]:
-        merged_edges: defaultdict[Edge, list[Edge]] = defaultdict(list)
+    def remove_runs(self) -> dict[Edge, Edge]:
+        merged_edges: dict[Edge, Edge] = {}
         for u in self.get_nodes():
             # we need to collect them into a list because the internal neighbors
             # list changes during the algorithm, leading to potential crashes
             u_neighbors = list(self.iter_out_neighbors(u))
             for v in u_neighbors:
+                last_merged_pair = None
                 while (
                     u != v
                     and self.get_in_degree(v) == 1
@@ -73,24 +74,28 @@ class NetworkitGraph(FASGraph):
                 ):
                     w = next(self.iter_out_neighbors(v))
                     if u != w:
-                        self.remove_run(merged_edges, u, v, w)
+                        if last_merged_pair is not None and last_merged_pair[
+                            0
+                        ] == (u, v):
+                            (x, y) = last_merged_pair[1]
+                            last_merged_pair = (u, w), (x, y)
+                        else:
+                            last_merged_pair = (u, w), (u, v)
+                        self.remove_run(u, v, w)
                     v = w
+
+                if last_merged_pair is not None:
+                    (u, v), (x, y) = last_merged_pair
+                    merged_edges[(u, v)] = (x, y)
 
         return merged_edges
 
     def remove_run(
         self,
-        merged_edges: defaultdict[Edge, list[Edge]],
         u: Node,
         v: Node,
         w: Node,
     ):
-        # uv was uxv in a previous step
-        if (u, v) in merged_edges:
-            merged_edges[(u, w)].extend(merged_edges[(u, v)])
-            # since v only has u and w as neighbors
-            del merged_edges[(u, v)]
-        merged_edges[(u, w)].append((u, v))
         # merge weights
         uv_weight = self.graph.weight(u, v)
         vw_weight = self.graph.weight(v, w)
@@ -143,6 +148,7 @@ class NetworkitGraph(FASGraph):
                     labels[mapped] = self.node_labels[orig]
 
                 yield self.__class__(compact_component, node_labels=labels)
+            # not used
             elif len(component_nodes) >= 3:
                 component = GraphTools.subgraphFromNodes(
                     self.graph, component_nodes
@@ -150,6 +156,7 @@ class NetworkitGraph(FASGraph):
                 for bcc in self.iter_biconnected_components_of(component):
                     yield bcc
 
+    # not used
     def iter_biconnected_components_of(self, subgraph: Graph) -> Iterator[Self]:
         undirected_subgraph = GraphTools.toUndirected(subgraph)
         bcc = BiconnectedComponents(undirected_subgraph)
@@ -392,5 +399,7 @@ class NetworkitGraph(FASGraph):
         copied_graph.topological_sort = copy(self.topological_sort)
         copied_graph.inv_topological_sort = copy(self.inv_topological_sort)
         copied_graph.prev_topological_sort = copy(self.prev_topological_sort)
-        copied_graph.prev_inv_topological_sort = copy(self.prev_inv_topological_sort)
+        copied_graph.prev_inv_topological_sort = copy(
+            self.prev_inv_topological_sort
+        )
         return copied_graph

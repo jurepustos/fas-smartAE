@@ -43,7 +43,7 @@ class FASGraph(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def remove_runs(self) -> dict[Edge, list[Edge]]:
+    def remove_runs(self) -> dict[Edge, Edge]:
         raise NotImplementedError
 
     @abstractmethod

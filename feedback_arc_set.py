@@ -4,15 +4,14 @@ import sys
 import time
 from concurrent.futures import Executor, Future
 from concurrent.futures.process import ProcessPoolExecutor
-from copy import copy
+from concurrent.futures.thread import ThreadPoolExecutor
+from copy import copy, deepcopy
 from typing import Callable, Iterator, TextIO
 
 from sortedcontainers import SortedList
 
 from fas_builder import FASBuilder, OrderingFASBuilder
 from fas_graph import FASGraph, Node
-from concurrent.futures.thread import ThreadPoolExecutor
-from copy import deepcopy
 
 
 class Mode(enum.Enum):
@@ -321,7 +320,7 @@ def parallel_components(
                 component,
                 f"Component {i}: {num_nodes} nodes, {num_edges} edges",
                 file=log_file,
-                flush=True
+                flush=True,
             )
 
             if num_edges >= 1000:

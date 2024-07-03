@@ -7,6 +7,7 @@ from concurrent.futures.process import ProcessPoolExecutor
 from contextlib import contextmanager
 from typing import Iterator, TextIO
 
+from fas_graph import FASGraph, Node
 from feedback_arc_set import Mode, feedback_arc_set
 from networkit_fas import NetworkitGraph
 
@@ -118,8 +119,20 @@ def open_textIO(
         yield fallback
 
 
+def load_graph(filename: str, format: str) -> tuple[FASGraph, dict[str, Node]]:
+    if format == "adjacency-list":
+        graph, node_id_mapping = NetworkitGraph.load_from_adjacency_list(
+            filename
+        )
+    else:
+        graph, node_id_mapping = NetworkitGraph.load_from_edge_list(filename)
+
+    return graph, node_id_mapping
+
+
 def run_algorithm(
     filename: str,
+    format: str,
     output_dir: str | None,
     log_dir: str | None,
     use_smartAE: bool,
@@ -132,19 +145,8 @@ def run_algorithm(
         open_textIO(log_dir, f"{filename}.log", sys.stderr) as log_file,
     ):
         print(f"Reading input file {filename}", flush=True)
-        if args.format == "adjacency-list":
-            graph, node_id_mapping = NetworkitGraph.load_from_adjacency_list(
-                filename
-            )
-        else:
-            graph, node_id_mapping = NetworkitGraph.load_from_edge_list(
-                filename
-            )
+        graph, labels = load_graph(filename, format)
 
-        num_nodes = graph.get_num_nodes()
-        num_edges = graph.get_num_edges()
-        num_nodes = graph.get_num_nodes()
-        num_edges = graph.get_num_edges()
         num_nodes = graph.get_num_nodes()
         num_edges = graph.get_num_edges()
 
@@ -172,6 +174,14 @@ def run_algorithm(
         out_file.flush()
         log_file.flush()
 
+        # test the FAS
+        for method, fas in fas_instances.items():
+            graph, labels = load_graph(filename, format)
+            node_id_fas = [(labels[u], labels[v]) for u, v in fas]
+            graph.remove_edges(node_id_fas)
+            if not graph.is_acyclic():
+                print(method, "Not acyclic!")
+
 
 if __name__ == "__main__":
     args = argument_parser().parse_args()
@@ -179,6 +189,7 @@ if __name__ == "__main__":
         for filename in expand_files(args.files):
             run_algorithm(
                 filename,
+                args.format,
                 args.output,
                 args.log,
                 args.smartAE,
@@ -191,6 +202,7 @@ if __name__ == "__main__":
             executor.map(
                 run_algorithm,
                 expand_files(args.files),
+                itertools.repeat(args.format),
                 itertools.repeat(args.output),
                 itertools.repeat(args.log),
                 itertools.repeat(args.smartAE),
