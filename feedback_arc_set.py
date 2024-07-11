@@ -6,6 +6,7 @@ from concurrent.futures import Executor, Future
 from concurrent.futures.process import ProcessPoolExecutor
 from concurrent.futures.thread import ThreadPoolExecutor
 from copy import copy, deepcopy
+from functools import partial
 from typing import Callable, Iterator, TextIO
 
 from sortedcontainers import SortedList
@@ -54,9 +55,7 @@ class Ordering(enum.Enum):
     DEGREE_DIFFERENCE = enum.auto()
     DEGREE_RATIO = enum.auto()
 
-    def _degree_difference_sorter(
-        self, graph: FASGraph
-    ) -> Callable[[Node], int]:
+    def _degree_difference_sorter(self, graph: FASGraph) -> Callable[[Node], int]:
         def sorter(node: Node) -> int:
             in_degree = graph.get_in_degree(node)
             out_degree = graph.get_out_degree(node)
@@ -135,10 +134,7 @@ def reduce_graph(graph: FASGraph) -> FASBuilder:
     fas_builder.add_fas_edges(graph.remove_self_loops())
     num_nodes = None
     num_edges = None
-    while (
-        graph.get_num_nodes() != num_nodes
-        and graph.get_num_edges() != num_edges
-    ):
+    while graph.get_num_nodes() != num_nodes and graph.get_num_edges() != num_edges:
         num_nodes = graph.get_num_nodes()
         num_edges = graph.get_num_edges()
         fas_builder.add_merged_edges(graph.remove_runs())
@@ -187,9 +183,7 @@ def feedback_arc_set(
 
     ordering_names = fas_builder.get_ordering_names()
     if len(ordering_names) > 0:
-        instances = {
-            name: fas_builder.build_fas(name) for name in ordering_names
-        }
+        instances = {name: fas_builder.build_fas(name) for name in ordering_names}
     else:
         # all components have single edges
         instances = {"edges": fas_builder.fas_edges}
@@ -253,9 +247,7 @@ def sequential_orderings(
         nodes.sort(key=ordering.get_asc_sorter(graph))
         for direction in DIRECTIONS:
             name = f"{ordering}_asc_{direction}"
-            print_output(
-                graph, f"\tComputing {name}", file=log_file, flush=True
-            )
+            print_output(graph, f"\tComputing {name}", file=log_file, flush=True)
             fas_builder.add_ordering(
                 name,
                 compute_fas(
@@ -271,9 +263,7 @@ def sequential_orderings(
         nodes.reverse()
         for direction in DIRECTIONS:
             name = f"{ordering}_desc_{direction}"
-            print_output(
-                graph, f"\tComputing {name}", file=log_file, flush=True
-            )
+            print_output(graph, f"\tComputing {name}", file=log_file, flush=True)
             fas_builder.add_ordering(
                 name,
                 compute_fas(
@@ -346,11 +336,10 @@ def parallel_components(
     return component_builders
 
 
-def finish_callback(name: str, fas_builder: FASBuilder):
-    def callback(future: Future[OrderingFASBuilder]):
-        fas_builder.add_ordering(f"{name}", future.result())
-
-    return callback
+def finish_callback(
+    name: str, fas_builder: FASBuilder, future: Future[OrderingFASBuilder]
+):
+    fas_builder.add_ordering(f"{name}", future.result())
 
 
 def parallel_orderings(
@@ -376,7 +365,7 @@ def parallel_orderings(
                 use_smartAE=use_smartAE,
                 mode=mode,
             )
-            future.add_done_callback(finish_callback(f"{name}", fas_builder))
+            future.add_done_callback(partial(finish_callback, f"{name}", fas_builder))
 
         nodes.reverse()
         for direction in DIRECTIONS:
@@ -389,7 +378,7 @@ def parallel_orderings(
                 use_smartAE=use_smartAE,
                 mode=mode,
             )
-            future.add_done_callback(finish_callback(f"{name}", fas_builder))
+            future.add_done_callback(partial(finish_callback, f"{name}", fas_builder))
 
     random.shuffle(nodes)
     for direction in DIRECTIONS:
@@ -402,7 +391,7 @@ def parallel_orderings(
             use_smartAE=use_smartAE,
             mode=mode,
         )
-        future.add_done_callback(finish_callback(f"{name}", fas_builder))
+        future.add_done_callback(partial(finish_callback, f"{name}", fas_builder))
 
     return fas_builder
 
@@ -419,9 +408,7 @@ def compute_fas(
     """
     builder = OrderingFASBuilder()
 
-    edges = remove_direction_edges(
-        graph, ordering, direction=direction, mode=mode
-    )
+    edges = remove_direction_edges(graph, ordering, direction=direction, mode=mode)
 
     builder.add_removed_edges(edges)
 
@@ -483,9 +470,7 @@ def get_direction_edges_from(
     return backward_edges
 
 
-def smart_ae(
-    graph: FASGraph, fas: list[tuple[int, int]]
-) -> list[tuple[int, int]]:
+def smart_ae(graph: FASGraph, fas: list[tuple[int, int]]) -> list[tuple[int, int]]:
     """
     For details of this algorithm, consult the paper by Cavallaro et al.
     """

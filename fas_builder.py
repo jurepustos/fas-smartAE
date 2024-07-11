@@ -68,7 +68,6 @@ class FASBuilder:
 
         fas = copy(self.fas_edges)
         merged_edges = deepcopy(self.merged_edges)
-        print(merged_edges)
         for u, v in instance:
             # if the current edge is merged from reductions, unmerge it
             if (u, v) in merged_edges:

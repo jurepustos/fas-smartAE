@@ -1,12 +1,12 @@
 import re
-from collections import defaultdict
 from copy import copy
+from functools import partial
 from typing import Iterator, Self
 
-from networkit.components import (BiconnectedComponents,
-                                  StronglyConnectedComponents)
+from networkit.components import BiconnectedComponents, StronglyConnectedComponents
 from networkit.graph import Graph
 from networkit.graphtools import GraphTools
+from networkit.traversal import Traversal
 
 from fas_graph import Edge, FASGraph, Node
 
@@ -25,12 +25,12 @@ class NetworkitGraph(FASGraph):
             if node_labels is not None
             else list(networkit_graph.iterNodes())
         )
-        self.acyclic: bool | None = None
-        self.added_backward_edge: Edge | None = None
-        self.prev_topological_sort: list[Node] | None = None
-        self.prev_inv_topological_sort: list[Node] | None = None
-        self.topological_sort: list[Node] | None = None
-        self.inv_topological_sort: list[Node] | None = None
+        self._acyclic: bool | None = None
+        self._added_backward_edge: Edge | None = None
+        self._prev_topological_sort: list[Node] | None = None
+        self._prev_inv_topological_sort: list[Node] | None = None
+        self._topological_sort: list[Node] | None = None
+        self._inv_topological_sort: list[Node] | None = None
 
     def get_node_labels(self) -> list[str]:
         return self.node_labels
@@ -74,9 +74,10 @@ class NetworkitGraph(FASGraph):
                 ):
                     w = next(self.iter_out_neighbors(v))
                     if u != w:
-                        if last_merged_pair is not None and last_merged_pair[
-                            0
-                        ] == (u, v):
+                        if last_merged_pair is not None and last_merged_pair[0] == (
+                            u,
+                            v,
+                        ):
                             (x, y) = last_merged_pair[1]
                             last_merged_pair = (u, w), (x, y)
                         else:
@@ -136,40 +137,19 @@ class NetworkitGraph(FASGraph):
         scc.run()
         for component_nodes in scc.getComponents():
             if len(component_nodes) >= 2:
-                component = GraphTools.subgraphFromNodes(
-                    self.graph, component_nodes
-                )
-                mapping = GraphTools.getContinuousNodeIds(component)
-                compact_component = GraphTools.getCompactedGraph(
-                    component, mapping
-                )
-                labels = len(mapping) * [""]
-                for orig, mapped in mapping.items():
-                    labels[mapped] = self.node_labels[orig]
-
-                yield self.__class__(compact_component, node_labels=labels)
-            # not used
-            elif len(component_nodes) >= 3:
-                component = GraphTools.subgraphFromNodes(
-                    self.graph, component_nodes
-                )
-                for bcc in self.iter_biconnected_components_of(component):
+                component = GraphTools.subgraphFromNodes(self.graph, component_nodes)
+                for bcc in self._iter_biconnected_components_of(component):
                     yield bcc
 
-    # not used
-    def iter_biconnected_components_of(self, subgraph: Graph) -> Iterator[Self]:
+    def _iter_biconnected_components_of(self, subgraph: Graph) -> Iterator[Self]:
         undirected_subgraph = GraphTools.toUndirected(subgraph)
         bcc = BiconnectedComponents(undirected_subgraph)
         bcc.run()
         for component_nodes in bcc.getComponents():
-            if len(component_nodes) == 2:
-                component = GraphTools.subgraphFromNodes(
-                    subgraph, component_nodes
-                )
+            if len(component_nodes) >= 2:
+                component = GraphTools.subgraphFromNodes(self.graph, component_nodes)
                 mapping = GraphTools.getContinuousNodeIds(component)
-                compact_component = GraphTools.getCompactedGraph(
-                    component, mapping
-                )
+                compact_component = GraphTools.getCompactedGraph(component, mapping)
                 labels = len(mapping) * [""]
                 for orig, mapped in mapping.items():
                     labels[mapped] = self.node_labels[orig]
@@ -177,20 +157,20 @@ class NetworkitGraph(FASGraph):
                 yield self.__class__(compact_component, node_labels=labels)
 
     def is_acyclic(self) -> bool:
-        if self.acyclic is not None:
-            return self.acyclic
+        if self._acyclic is not None:
+            return self._acyclic
 
         try:
-            self.topological_sort = GraphTools.topologicalSort(self.graph)
+            self._topological_sort = GraphTools.topologicalSort(self.graph)
         except RuntimeError:
-            self.acyclic = False
+            self._acyclic = False
             return False
 
-        assert self.topological_sort is not None
-        self.inv_topological_sort = len(self.topological_sort) * [0]
-        for i, node in enumerate(self.topological_sort):
-            self.inv_topological_sort[node] = i
-        self.acyclic = True
+        assert self._topological_sort is not None
+        self._inv_topological_sort = len(self._topological_sort) * [0]
+        for i, node in enumerate(self._topological_sort):
+            self._inv_topological_sort[node] = i
+        self._acyclic = True
         return True
 
     def get_edge_weight(self, source: Node, target: Node) -> int:
@@ -200,21 +180,18 @@ class NetworkitGraph(FASGraph):
         cc = StronglyConnectedComponents(self.graph)
         cc.run()
         if cc.numberOfComponents() == self.get_num_nodes():
-            self.acyclic = True
+            self._acyclic = True
         else:
-            self.acyclic = False
+            self._acyclic = False
         partition = cc.getPartition()
         return not partition.inSameSubset(source, target)
 
     def edge_preserves_topology(self, source: Node, target: Node) -> bool:
-        if not self.acyclic or self.inv_topological_sort is None:
+        if not self._acyclic or self._inv_topological_sort is None:
             # we only know the answer if we know the graph is acyclic
             return False
 
-        return (
-            self.inv_topological_sort[target]
-            >= self.inv_topological_sort[source]
-        )
+        return self._inv_topological_sort[target] >= self._inv_topological_sort[source]
 
     def add_edges(self, edges: list[tuple[Node, Node]]):
         for source, target in edges:
@@ -223,39 +200,39 @@ class NetworkitGraph(FASGraph):
     def add_edge(self, source: Node, target: Node):
         # check if the edge violates the topological ordering,
         # making the graph cyclic.
-        if self.acyclic and not self.edge_preserves_topology(source, target):
-            self.acyclic = None
-            if self.added_backward_edge is None:
-                self.added_backward_edge = source, target
-                self.prev_topological_sort = self.topological_sort
-                self.prev_inv_topological_sort = self.inv_topological_sort
-                self.topological_sort = None
-                self.topological_sort = None
+        if self._acyclic and not self.edge_preserves_topology(source, target):
+            self._acyclic = None
+            if self._added_backward_edge is None:
+                self._added_backward_edge = source, target
+                self._prev_topological_sort = self._topological_sort
+                self._prev_inv_topological_sort = self._inv_topological_sort
+                self._topological_sort = None
+                self._topological_sort = None
             else:
                 # we only store acyclicity information for one violating edge back
-                self.added_backward_edge = None
-                self.topological_sort = None
-                self.inv_topological_sort = None
-                self.prev_topological_sort = None
-                self.prev_inv_topological_sort = None
+                self._added_backward_edge = None
+                self._topological_sort = None
+                self._inv_topological_sort = None
+                self._prev_topological_sort = None
+                self._prev_inv_topological_sort = None
 
         self.graph.increaseWeight(source, target, 1)
 
     def remove_edge(self, source: Node, target: Node):
-        if self.added_backward_edge == (source, target):
-            self.added_backward_edge = None
-            self.topological_sort = self.prev_topological_sort
-            self.inv_topological_sort = self.prev_inv_topological_sort
-            self.prev_topological_sort = None
-            self.prev_inv_topological_sort = None
-            self.acyclic = True
+        if self._added_backward_edge == (source, target):
+            self._added_backward_edge = None
+            self._topological_sort = self._prev_topological_sort
+            self._inv_topological_sort = self._prev_inv_topological_sort
+            self._prev_topological_sort = None
+            self._prev_inv_topological_sort = None
+            self._acyclic = True
 
         if self.graph.weight(source, target) > 1:
             self.graph.increaseWeight(source, target, -1)
         else:
             self.graph.removeEdge(source, target)
-            if not self.acyclic:
-                self.acyclic = None
+            if not self._acyclic:
+                self._acyclic = None
 
     def remove_edges(self, edges: list[tuple[Node, Node]]):
         for source, target in edges:
@@ -294,9 +271,7 @@ class NetworkitGraph(FASGraph):
         for label, node in labels.items():
             inverse_labels[node] = label
 
-        return cls(
-            graph, node_labels=inverse_labels, self_loops=self_loops
-        ), labels
+        return cls(graph, node_labels=inverse_labels, self_loops=self_loops), labels
 
     @classmethod
     def load_from_dot(cls, filename: str):
@@ -339,9 +314,7 @@ class NetworkitGraph(FASGraph):
                     if source == target:
                         self_loops.append((labels[source], labels[source]))
                     else:
-                        graph.increaseWeight(
-                            labels[source], labels[target], weight
-                        )
+                        graph.increaseWeight(labels[source], labels[target], weight)
 
         inverse_labels = ["" for _ in range(graph.numberOfNodes())]
         for label, node in labels.items():
@@ -352,9 +325,7 @@ class NetworkitGraph(FASGraph):
         ), labels
 
     @classmethod
-    def load_from_adjacency_list(
-        cls, filename: str
-    ) -> tuple[Self, dict[str, Node]]:
+    def load_from_adjacency_list(cls, filename: str) -> tuple[Self, dict[str, Node]]:
         """
         Load the graph from an adjacency-list representation.
         """
@@ -385,21 +356,17 @@ class NetworkitGraph(FASGraph):
         for label, node in labels.items():
             inverse_labels[node] = label
 
-        return cls(
-            graph, node_labels=inverse_labels, self_loops=self_loops
-        ), labels
+        return cls(graph, node_labels=inverse_labels, self_loops=self_loops), labels
 
     def __copy__(self):
         copied_graph = NetworkitGraph(
             copy(self.graph),
             node_labels=copy(self.node_labels),
         )
-        copied_graph.acyclic = copy(self.acyclic)
-        copied_graph.added_backward_edge = copy(self.added_backward_edge)
-        copied_graph.topological_sort = copy(self.topological_sort)
-        copied_graph.inv_topological_sort = copy(self.inv_topological_sort)
-        copied_graph.prev_topological_sort = copy(self.prev_topological_sort)
-        copied_graph.prev_inv_topological_sort = copy(
-            self.prev_inv_topological_sort
-        )
+        copied_graph._acyclic = copy(self._acyclic)
+        copied_graph._added_backward_edge = copy(self._added_backward_edge)
+        copied_graph._topological_sort = copy(self._topological_sort)
+        copied_graph._inv_topological_sort = copy(self._inv_topological_sort)
+        copied_graph._prev_topological_sort = copy(self._prev_topological_sort)
+        copied_graph._prev_inv_topological_sort = copy(self._prev_inv_topological_sort)
         return copied_graph
