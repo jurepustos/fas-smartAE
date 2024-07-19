@@ -6,6 +6,7 @@ from typing import Iterator, Self
 from networkit.components import BiconnectedComponents, StronglyConnectedComponents
 from networkit.graph import Graph
 from networkit.graphtools import GraphTools
+from networkit.structures import Partition
 from networkit.traversal import Traversal
 
 from fas_graph import Edge, FASGraph, Node
@@ -26,6 +27,7 @@ class NetworkitGraph(FASGraph):
             else list(networkit_graph.iterNodes())
         )
         self._acyclic: bool | None = None
+        self._scc_partition: Partition | None = None
         self._added_backward_edge: Edge | None = None
         self._prev_topological_sort: list[Node] | None = None
         self._prev_inv_topological_sort: list[Node] | None = None
@@ -177,14 +179,17 @@ class NetworkitGraph(FASGraph):
         return int(self.graph.weight(source, target))
 
     def edge_between_components(self, source: Node, target: Node) -> bool:
-        cc = StronglyConnectedComponents(self.graph)
-        cc.run()
-        if cc.numberOfComponents() == self.get_num_nodes():
-            self._acyclic = True
-        else:
-            self._acyclic = False
-        partition = cc.getPartition()
-        return not partition.inSameSubset(source, target)
+        if self._scc_partition is None:
+            cc = StronglyConnectedComponents(self.graph)
+            cc.run()
+            if cc.numberOfComponents() == self.get_num_nodes():
+                self._acyclic = True
+            else:
+                self._acyclic = False
+            self._scc_partition = cc.getPartition()
+
+        assert self._scc_partition is not None
+        return not self._scc_partition.inSameSubset(source, target)
 
     def edge_preserves_topology(self, source: Node, target: Node) -> bool:
         if not self._acyclic or self._inv_topological_sort is None:
@@ -202,6 +207,7 @@ class NetworkitGraph(FASGraph):
         # making the graph cyclic.
         if self._acyclic and not self.edge_preserves_topology(source, target):
             self._acyclic = None
+            self._scc_partition = None
             if self._added_backward_edge is None:
                 self._added_backward_edge = source, target
                 self._prev_topological_sort = self._topological_sort
@@ -226,6 +232,11 @@ class NetworkitGraph(FASGraph):
             self._prev_topological_sort = None
             self._prev_inv_topological_sort = None
             self._acyclic = True
+
+        if self._scc_partition is not None and not self.edge_between_components(
+            source, target
+        ):
+            self._scc_partition = None
 
         if self.graph.weight(source, target) > 1:
             self.graph.increaseWeight(source, target, -1)

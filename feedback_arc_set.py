@@ -430,12 +430,12 @@ def remove_direction_edges(
         edges = get_direction_edges_from(graph, ordering, i, direction)
         match mode:
             case Mode.QUALITY:
+                edges_to_remove = []
                 for source, target in edges:
-                    edges_to_remove = []
                     if not graph.edge_between_components(source, target):
                         edges_to_remove.append((source, target))
-                    graph.remove_edges(edges_to_remove)
-                    direction_edges.extend(edges_to_remove)
+                graph.remove_edges(edges_to_remove)
+                direction_edges.extend(edges_to_remove)
                 if graph.is_acyclic():
                     break
             case Mode.FAST:
